@@ -10,7 +10,7 @@
 
 ## Live Demo
 
-🔗 //
+🔗 https://preetsirohi.github.io/Wholesale-Shop-Management-System/
 ---
 
 ## 📋 Table of Contents
