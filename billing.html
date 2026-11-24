@@ -56,7 +56,7 @@
 
   <div class="main-content">
     <header class="topbar">
-      <div style="display:flex;align-items:center;gap:14px;">
+      <div style="display:none;align-items:center;gap:14px;">
         <button class="hamburger" id="hamburger">☰</button>
         <h1>🧾 Billing System</h1>
       </div>
@@ -266,7 +266,7 @@
       <div class="modal-body" id="receiptContent"></div>
       <div class="modal-footer">
         <button class="btn btn-outline" onclick="closeModal('previewModal')">Close</button>
-        <button class="btn btn-primary" onclick="window.print()">🖨️ Print</button>
+        <button class="btn btn-primary no-print" onclick="window.print()">🖨️ Print</button>
       </div>
     </div>
   </div>
@@ -544,82 +544,206 @@
         .catch(error => showAlert(error.message, 'error'));
     }
 
-    // ---- View bill receipt ----
+
     function viewBill(id) {
       const b = DB.bills.find(b => b.id === id);
       if (!b) return;
 
       const customer = DB.customers.find(c => c.id === b.customerId);
-      const discAmt = b.total * (b.discount / 100);
-      const afterDisc = b.total - discAmt;
 
-      const billItems = (DB.billItems || []).filter(item => item.billId === b.id);
-      const receiptItems = billItems.length ? billItems.map(item => {
-        const product = DB.products.find(p => p.id === item.productId);
-        return { name: product?.name || 'Product', qty: item.quantity, unitPrice: safeNumber(item.unitPrice), subtotal: safeNumber(item.subtotal) };
-      }) : (b.items || []);
+      // Convert database decimal strings into numbers
+      const subtotal = Number(b.total) || 0;
+      const discountPercent = Number(b.discount) || 0;
+      const taxAmount = Number(b.tax) || 0;
+      const paidAmount = Number(b.paidAmount) || 0;
+
+      // Financial calculations
+      const discountAmount = subtotal * (discountPercent / 100);
+      const discountedAmount = subtotal - discountAmount;
+      const finalAmount = discountedAmount + taxAmount;
+      const balanceAmount = Math.max(0, finalAmount - paidAmount);
+
+      // Bill items
+      const billItems = (DB.billItems || []).filter(
+        item => item.billId === b.id
+      );
+
+      const receiptItems = billItems.length
+        ? billItems.map(item => {
+          const product = DB.products.find(
+            p => p.id === item.productId
+          );
+
+          return {
+            name: product?.name || 'Product',
+            qty: Number(item.quantity) || 0,
+            unitPrice: Number(item.unitPrice) || 0,
+            subtotal: Number(item.subtotal) || 0
+          };
+        })
+        : (b.items || []);
 
       const itemsHTML = receiptItems.map(item => `
-    <tr>
-      <td style="padding:6px 0;border-bottom:1px solid rgba(255,255,255,0.06);">${item.name}</td>
-      <td style="padding:6px 4px;border-bottom:1px solid rgba(255,255,255,0.06);text-align:center;">${item.qty}</td>
-      <td style="padding:6px 0;border-bottom:1px solid rgba(255,255,255,0.06);text-align:right;">${formatCurrency(item.unitPrice)}</td>
-      <td style="padding:6px 0;border-bottom:1px solid rgba(255,255,255,0.06);text-align:right;">${formatCurrency(item.subtotal)}</td>
-    </tr>
-  `).join('');
+        <tr>
+            <td style="padding:8px 4px;border-bottom:1px solid var(--navy-light);">
+                ${item.name}
+            </td>
+            <td style="padding:8px 4px;text-align:center;border-bottom:1px solid var(--navy-light);">
+                ${item.qty}
+            </td>
+            <td style="padding:8px 4px;text-align:right;border-bottom:1px solid var(--navy-light);">
+                ${formatCurrency(Number(item.unitPrice) || 0)}
+            </td>
+            <td style="padding:8px 4px;text-align:right;border-bottom:1px solid var(--navy-light);">
+                ${formatCurrency(Number(item.subtotal) || 0)}
+            </td>
+        </tr>
+    `).join('');
+
+      const paymentStatus =
+        balanceAmount <= 0 ? 'Paid' :
+          paidAmount > 0 ? 'Partial' : 'Unpaid';
 
       document.getElementById('receiptContent').innerHTML = `
-    <div class="bill-receipt">
-      <div class="receipt-header">
-        <div style="font-size:24px;margin-bottom:4px;">🏪</div>
-        <h3>DaanaPaani Traders</h3>
-        <p style="color:var(--muted);font-size:12px;margin-top:4px;">Wholesale Management System</p>
-        <p style="margin-top:8px;font-size:12px;">
-          Bill No: <strong style="color:var(--amber);">#${String(b.id).padStart(4, '0')}</strong>
-          &nbsp;|&nbsp; Date: <strong>${formatDate(b.date)}</strong>
-        </p>
-      </div>
+        <div class="bill-receipt">
 
-      <div style="margin-bottom:16px;padding-bottom:16px;border-bottom:1px dashed var(--navy-light);">
-        <div style="font-size:11px;color:var(--muted);margin-bottom:4px;">BILLED TO</div>
-        <strong style="font-size:15px;">${customer ? customer.name : '—'}</strong><br>
-        <span style="font-size:12px;color:var(--muted);">${customer ? customer.phone : ''}</span>
-        ${customer?.address ? `<br><span style="font-size:12px;color:var(--muted);">${customer.address}</span>` : ''}
-        ${customer?.gst ? `<br><span style="font-size:11px;color:var(--muted);">GST: ${customer.gst}</span>` : ''}
-      </div>
+            <!-- Header -->
+            <div class="receipt-header">
+                <div style="margin-bottom:4px;">
+                    <img src="assets/daana-paani-logo.svg"
+                         alt="DaanaPaani"
+                         style="width:48px;height:48px;object-fit:contain;">
+                </div>
+                <h3>DaanaPaani Traders</h3>
+                <small style="color:var(--muted);">
+                    Good Food • Brighter Tomorrows
+                </small>
+            </div>
 
-      <table style="width:100%;margin-bottom:16px;font-size:13px;">
-        <thead>
-          <tr>
-            <th style="text-align:left;padding:6px 0;color:var(--amber);border-bottom:1px solid var(--navy-light);">Product</th>
-            <th style="text-align:center;padding:6px 4px;color:var(--amber);border-bottom:1px solid var(--navy-light);">Qty</th>
-            <th style="text-align:right;padding:6px 0;color:var(--amber);border-bottom:1px solid var(--navy-light);">Price</th>
-            <th style="text-align:right;padding:6px 0;color:var(--amber);border-bottom:1px solid var(--navy-light);">Total</th>
-          </tr>
-        </thead>
-        <tbody>${itemsHTML || '<tr><td colspan="4" style="color:var(--muted);padding:10px 0;">No item details available.</td></tr>'}</tbody>
-      </table>
+            <p style="margin-top:12px;font-size:12px;">
+                Bill No:
+                <strong style="color:var(--amber);">
+                    #${String(b.id).padStart(4, '0')}
+                </strong>
+                &nbsp;|&nbsp;
+                Date: <strong>${formatDate(b.date)}</strong>
+            </p>
 
-      <table class="bill-totals" style="width:100%;margin-top:8px;">
-        <tbody>
-          <tr><td>Subtotal</td><td style="text-align:right;">${formatCurrency(b.total)}</td></tr>
-          ${b.discount > 0 ? `<tr><td>Discount (${b.discount}%)</td><td style="text-align:right;color:var(--green);">-${formatCurrency(discAmt)}</td></tr>` : ''}
-          <tr class="grand-total" style="border-top:1px dashed var(--navy-light);">
-            <td style="padding-top:10px;"><strong>TOTAL AMOUNT</strong></td>
-            <td style="text-align:right;padding-top:10px;font-size:20px;color:var(--amber);">${formatCurrency(b.final)}</td>
-          </tr>
-        </tbody>
-      </table>
+            <div style="margin:16px 0;padding-bottom:16px;border-bottom:1px dashed var(--navy-light);">
+                <div style="font-size:11px;color:var(--muted);margin-bottom:4px;">
+                    BILLED TO
+                </div>
+                <strong style="font-size:15px;">
+                    ${customer?.name || 'Walk-in Customer'}
+                </strong>
+                <br>
+                <span style="font-size:12px;color:var(--muted);">
+                    ${customer?.phone || ''}
+                </span>
+                ${customer?.address ? `
+                    <br><span style="font-size:12px;color:var(--muted);">
+                        ${customer.address}
+                    </span>` : ''}
+                ${customer?.gst ? `
+                    <br><span style="font-size:11px;color:var(--muted);">
+                        GST: ${customer.gst}
+                    </span>` : ''}
+            </div>
 
-      <div style="margin-top:20px;padding-top:16px;border-top:1px dashed var(--navy-light);text-align:center;font-size:12px;">
-        <div style="margin-bottom:6px;">
-          Payment: <span class="badge ${b.status === 'Paid' ? 'badge-green' : b.status === 'Partial' ? 'badge-yellow' : 'badge-red'}">${b.status}</span>
-          &nbsp;|&nbsp; Mode: <span class="badge badge-blue">${b.mode}</span>
+            <!-- Products -->
+            <table class="ignore_export" style="width:100%;margin-bottom:16px;font-size:13px;">
+                <thead>
+                    <tr>
+                        <th style="text-align:left;padding:6px 4px;color:var(--amber);">Product</th>
+                        <th style="text-align:center;padding:6px 4px;color:var(--amber);">Qty</th>
+                        <th style="text-align:right;padding:6px 4px;color:var(--amber);">Price</th>
+                        <th style="text-align:right;padding:6px 4px;color:var(--amber);">Total</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${itemsHTML || `
+                        <tr>
+                            <td colspan="4" style="padding:10px 0;">
+                                No item details available.
+                            </td>
+                        </tr>
+                    `}
+                </tbody>
+            </table>
+
+            <!-- Bill Calculation -->
+            <table class="bill-totals ignore_export" style="width:100%;margin-top:8px;">
+                <tbody>
+                    <tr>
+                        <td>Subtotal</td>
+                        <td style="text-align:right;">
+                            ${formatCurrency(subtotal)}
+                        </td>
+                    </tr>
+
+                    ${discountAmount > 0 ? `
+                    <tr>
+                        <td>Discount (${discountPercent}%)</td>
+                        <td style="text-align:right;color:var(--green);">
+                            -${formatCurrency(discountAmount)}
+                        </td>
+                    </tr>` : ''}
+
+                    ${taxAmount > 0 ? `
+                    <tr>
+                        <td>Tax</td>
+                        <td style="text-align:right;">
+                            ${formatCurrency(taxAmount)}
+                        </td>
+                    </tr>` : ''}
+
+                    <tr style="border-top:1px dashed var(--navy-light);">
+                        <td style="padding-top:12px;">
+                            <strong>FINAL AMOUNT</strong>
+                        </td>
+                        <td style="text-align:right;padding-top:12px;font-size:20px;color:var(--amber);">
+                            <strong>${formatCurrency(finalAmount)}</strong>
+                        </td>
+                    </tr>
+
+                    <tr>
+                        <td>Amount Paid</td>
+                        <td style="text-align:right;color:var(--green);">
+                            ${formatCurrency(paidAmount)}
+                        </td>
+                    </tr>
+
+                    <tr>
+                        <td><strong>Balance Due</strong></td>
+                        <td style="text-align:right;color:var(--red);font-weight:bold;">
+                            ${formatCurrency(balanceAmount)}
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <!-- Payment Details -->
+            <div style="margin-top:20px;padding-top:16px;border-top:1px dashed var(--navy-light);text-align:center;font-size:12px;">
+                <div style="margin-bottom:6px;">
+                    Payment:
+                    <span class="badge ${paymentStatus === 'Paid' ? 'badge-green' :
+          paymentStatus === 'Partial' ? 'badge-yellow' :
+            'badge-red'
+        }">${paymentStatus}</span>
+
+                    &nbsp;|&nbsp;
+
+                    Mode:
+                    <span class="badge badge-blue">${b.mode || 'N/A'}</span>
+                </div>
+
+                <p style="color:var(--muted);margin-top:8px;">
+                    Thank you for your business! 🙏
+                </p>
+            </div>
+
         </div>
-        <p style="color:var(--muted);margin-top:8px;">Thank you for your business! 🙏</p>
-      </div>
-    </div>
-  `;
+    `;
 
       openModal('previewModal');
     }
@@ -726,7 +850,7 @@
           <div><small style="color:var(--muted)">DATE</small><br><strong>${formatDate(latest.date)}</strong></div>
           <div><small style="color:var(--muted)">STATUS</small><br>${paymentBadge(latest.status)}</div>
         </div>
-        <table style="width:100%;margin-bottom:10px">
+        <table class="ignore_export" style="width:100%;margin-bottom:10px">
           <thead><tr><th>Product</th><th>Qty</th><th>Rate</th><th>Total</th></tr></thead>
           <tbody>${itemRows || '<tr><td colspan="4" style="text-align:center;color:var(--muted)">No item details available</td></tr>'}</tbody>
         </table>`;

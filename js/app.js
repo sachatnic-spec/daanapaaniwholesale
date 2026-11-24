@@ -212,14 +212,27 @@ function initSidebar() {
   const overlay = document.getElementById('sidebarOverlay');
 
   if (hamburger && sidebar) {
-    hamburger.addEventListener('click', () => {
+    hamburger.addEventListener('click', (event) => {
+      event.preventDefault();
+      event.stopPropagation();
       sidebar.classList.toggle('open');
+      if (overlay) overlay.style.display = sidebar.classList.contains('open') ? 'block' : 'none';
     });
   }
 
   if (overlay) {
-    overlay.addEventListener('click', () => sidebar.classList.remove('open'));
+    overlay.addEventListener('click', () => {
+      sidebar?.classList.remove('open');
+      overlay.style.display = 'none';
+    });
   }
+
+  document.querySelectorAll('.sidebar-nav a').forEach(link => {
+    link.addEventListener('click', () => {
+      sidebar?.classList.remove('open');
+      if (overlay) overlay.style.display = 'none';
+    });
+  });
 
   // Mark active nav link based on current page
   const currentPage = window.location.pathname.split('/').pop() || 'index.html';
@@ -358,7 +371,7 @@ function exportTableToPdf(tableWrapper, title) {
 
 function initTablePdfExports() {
   const containers = new Set();
-  document.querySelectorAll('table').forEach(table => {
+  document.querySelectorAll('table:not(.ignore_export)').forEach(table => {
     containers.add(table.closest('.table-wrapper') || table.closest('.card') || table.parentElement);
   });
 
@@ -450,8 +463,11 @@ function initTableSorting() {
           const aValue = parseSortableValue(a.cells[columnIndex]?.textContent || '');
           const bValue = parseSortableValue(b.cells[columnIndex]?.textContent || '');
           let comparison;
-          if (typeof aValue === 'number' && typeof bValue === 'number') comparison = aValue - bValue;
-          else comparison = String(aValue).localeCompare(String(bValue));
+          if (typeof aValue === 'number' && typeof bValue === 'number') {
+            comparison = aValue - bValue;
+          } else {
+            comparison = String(aValue).localeCompare(String(bValue));
+          }
           return direction === 'asc' ? comparison : -comparison;
         });
         rows.forEach(row => tbody.appendChild(row));
@@ -470,13 +486,4 @@ document.addEventListener('DOMContentLoaded', () => {
     });
     sortObserver.observe(document.body, { childList: true, subtree: true });
   }
-});
-
-// ============================================================
-//  INIT ON PAGE LOAD
-// ============================================================
-document.addEventListener('DOMContentLoaded', () => {
-  initSidebar();
-  setTopbarDate();
-  initUserBar();
 });
