@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Login | DaanaPaani Traders</title>
+    <link rel="stylesheet" href="css/style.css" />
+</head>
+
+<body class="login-page">
+    <main class="login-card">
+        <div class="login-brand">
+            <img class="login-logo" src="assets/daana-paani-logo.svg" alt="DaanaPaani Traders" />
+            <div class="login-monogram" aria-hidden="true">DP</div>
+        </div>
+        <h1>DaanaPaani Traders</h1>
+        <p>Sign in to continue</p>
+        <form id="loginForm">
+            <div class="form-group">
+                <label>Username</label>
+                <input id="loginUsername" autocomplete="username" required />
+            </div>
+            <div class="form-group">
+                <label>Password</label>
+                <input id="loginPassword" type="password" autocomplete="current-password" required />
+            </div>
+            <div id="loginError" class="alert alert-error"></div>
+            <button class="btn btn-primary login-submit" type="submit">Sign In</button>
+        </form>
+    </main>
+    <script>
+        document.getElementById('loginForm').addEventListener('submit', async (event) => {
+            event.preventEvent?.();
+            event.preventDefault();
+            const errorBox = document.getElementById('loginError');
+            errorBox.className = 'alert alert-error';
+            errorBox.textContent = '';
+            try {
+                const response = await fetch('/api/auth/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        username: document.getElementById('loginUsername').value.trim(),
+                        password: document.getElementById('loginPassword').value
+                    })
+                });
+                const data = await response.json();
+                if (!response.ok) throw new Error(data.error || 'Login failed');
+                sessionStorage.setItem('authToken', data.token);
+                sessionStorage.setItem('authUser', JSON.stringify(data.user));
+                window.location.href = 'index.html';
+            } catch (error) {
+                errorBox.className = 'alert alert-error show';
+                errorBox.textContent = error.message;
+            }
+        });
+    </script>
+</body>
+
+</html>
