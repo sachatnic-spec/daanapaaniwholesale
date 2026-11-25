@@ -9,7 +9,7 @@ app.use(express.json({ limit: '2mb' }));
 
 const pool = new Pool({
     host: process.env.PGHOST || 'localhost',
-    port: Number(process.env.PGPORT || 5432),
+    port: Number(process.env.PGPORT || 5433),
     database: process.env.PGDATABASE || 'wholesale_shop_db',
     user: process.env.PGUSER || 'postgres',
     password: process.env.PGPASSWORD || 'postgres'
@@ -209,6 +209,10 @@ app.post('/api/bills/:id/pay', requireAuth, async (req, res, next) => {
     try {
         const amount = Number(req.body.amount);
         const mode = req.body.mode || 'Cash';
+        const dueDate = req.body.dueDate ? String(req.body.dueDate).trim() : null;
+        if (dueDate && !/^\d{4}-\d{2}-\d{2}$/.test(dueDate)) {
+            return res.status(400).json({ error: 'Enter a valid collection due date.' });
+        }
         if (!Number.isFinite(amount) || amount <= 0) {
             return res.status(400).json({ error: 'Enter a valid paid amount greater than zero.' });
         }
@@ -223,9 +227,13 @@ app.post('/api/bills/:id/pay', requireAuth, async (req, res, next) => {
         const paidAmount = Math.min(Number(bill.rows[0].final_amount), currentPaid + amount);
         const balanceAmount = Math.max(Number(bill.rows[0].final_amount) - paidAmount, 0);
         const status = balanceAmount === 0 ? 'Paid' : 'Partial';
-        await pool.query(`UPDATE bills SET paid_amount=$1,balance_amount=$2,payment_status=$3,payment_mode=$4,paid_by=$5 WHERE bill_id=$6`, [paidAmount, balanceAmount, status, mode, req.user.userId, req.params.id]);
-        await addAudit(req, 'COLLECT_PAYMENT', 'bill', Number(req.params.id), `Collected ${amount}; paid=${paidAmount}; balance=${balanceAmount}; mode=${mode}`);
-        res.json({ paidAmount, balanceAmount, status });
+        if (balanceAmount > 0 && !dueDate) {
+            return res.status(400).json({ error: 'Collection Due Date is required for a remaining balance.' });
+        }
+        const savedDueDate = balanceAmount === 0 ? null : dueDate;
+        await pool.query(`UPDATE bills SET paid_amount=$1,balance_amount=$2,payment_status=$3,payment_mode=$4,paid_by=$5,due_date=$6 WHERE bill_id=$7`, [paidAmount, balanceAmount, status, mode, req.user.userId, savedDueDate, req.params.id]);
+        await addAudit(req, 'COLLECT_PAYMENT', 'bill', Number(req.params.id), `Collected ${amount}; paid=${paidAmount}; balance=${balanceAmount}; mode=${mode}; dueDate=${savedDueDate || 'cleared'}`);
+        res.json({ paidAmount, balanceAmount, status, dueDate: savedDueDate });
     } catch (error) { next(error); }
 });
 

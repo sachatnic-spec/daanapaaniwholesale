@@ -8,25 +8,65 @@
   <link rel="stylesheet" href="css/style.css" />
   <style>
     @media print {
+      @page {
+        size: A4 portrait;
+        margin: 8mm;
+      }
+
       body {
         background: white !important;
         color: black !important;
+        width: 100% !important;
       }
 
       .sidebar,
       .topbar,
-      .no-print {
+      .no-print,
+      .modal-header,
+      .modal-footer {
         display: none !important;
       }
 
       .main-content {
         margin-left: 0 !important;
+        width: 100% !important;
+      }
+
+      #previewModal {
+        position: absolute !important;
+        inset: 0 !important;
+        display: block !important;
+        width: 100% !important;
+        height: auto !important;
+        overflow: visible !important;
+        background: white !important;
+      }
+
+      #previewModal .modal,
+      #receiptContent,
+      .bill-receipt {
+        position: static !important;
+        width: 100% !important;
+        max-width: 194mm !important;
+        height: auto !important;
+        max-height: none !important;
+        margin: 0 auto !important;
+        padding: 4mm !important;
+        overflow: visible !important;
+        border: none !important;
+        box-sizing: border-box !important;
+        background: white !important;
+        color: black !important;
+      }
+
+      .bill-receipt table {
+        width: 100% !important;
+        table-layout: fixed !important;
       }
 
       .bill-receipt {
-        border: 1px solid #ccc;
-        color: black;
-        background: white;
+        font-size: 11px !important;
+        break-inside: avoid-page;
       }
     }
   </style>
@@ -307,6 +347,10 @@
               <option value="Online">Online</option>
               <option value="Credit">Credit</option>
             </select>
+          </div>
+          <div class="form-group" id="paymentDueDateGroup" style="grid-column:1/-1">
+            <label>Collection Due Date</label>
+            <input type="date" id="paymentDueDate" />
           </div>
         </div>
         <div id="paymentPreview" style="margin-top:12px;color:var(--muted);">After payment: ₹0.00 will remain pending.
@@ -764,6 +808,8 @@
       document.getElementById('paymentAmount').value = '';
       document.getElementById('paymentAmount').max = pending.toFixed(2);
       document.getElementById('paymentMode').value = bill.mode || 'Cash';
+      document.getElementById('paymentDueDate').value = bill.dueDate || '';
+      document.getElementById('paymentDueDateGroup').style.display = 'block';
       document.getElementById('paymentPreview').textContent = 'Enter an amount to calculate the remaining pending balance.';
       openModal('paymentModal');
     }
@@ -778,6 +824,7 @@
       const amount = Number(document.getElementById('paymentAmount').value);
       const validAmount = Number.isFinite(amount) ? Math.max(amount, 0) : 0;
       const remaining = Math.max(final - paid - validAmount, 0);
+      document.getElementById('paymentDueDateGroup').style.display = remaining > 0 ? 'block' : 'none';
       document.getElementById('paymentPreview').innerHTML = `After payment: <strong style="color:${remaining === 0 ? 'var(--green)' : 'var(--red)'}">${formatCurrency(remaining)}</strong> will remain pending.`;
     }
 
@@ -791,6 +838,7 @@
       const pending = Math.max(final - paid, 0);
       const amount = Number(document.getElementById('paymentAmount').value);
       const mode = document.getElementById('paymentMode').value;
+      const dueDate = document.getElementById('paymentDueDate').value || null;
 
       if (!Number.isFinite(amount) || amount <= 0) {
         showAlert('Enter a valid paid amount.', 'error');
@@ -802,8 +850,14 @@
         document.getElementById('paymentAmount').focus();
         return;
       }
+      const remaining = Math.max(final - paid - amount, 0);
+      if (remaining > 0 && !dueDate) {
+        showAlert('Collection Due Date is required for a remaining balance.', 'error');
+        document.getElementById('paymentDueDate').focus();
+        return;
+      }
 
-      apiRequest(`/api/bills/${id}/pay`, { method: 'POST', body: JSON.stringify({ amount, mode }) })
+      apiRequest(`/api/bills/${id}/pay`, { method: 'POST', body: JSON.stringify({ amount, mode, dueDate }) })
         .then(() => apiRequest('/api/db'))
         .then(data => {
           DB = data;
