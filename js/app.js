@@ -370,8 +370,9 @@ function exportTableToPdf(tableWrapper, title) {
 }
 
 function initTablePdfExports() {
+  if (document.body?.dataset?.disableTablePdf === 'true') return;
   const containers = new Set();
-  document.querySelectorAll('table:not(.ignore_export)').forEach(table => {
+  document.querySelectorAll('table.export_to_pdf').forEach(table => {
     containers.add(table.closest('.table-wrapper') || table.closest('.card') || table.parentElement);
   });
 

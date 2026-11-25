@@ -45,6 +45,9 @@ CREATE TABLE customers (
     gst_number VARCHAR(20),
     credit_limit NUMERIC(10,2) NOT NULL DEFAULT 50000.00,
     repeat_order_days INTEGER NOT NULL DEFAULT 30,
+    photo_data TEXT,
+    latitude NUMERIC(10,7),
+    longitude NUMERIC(10,7),
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 

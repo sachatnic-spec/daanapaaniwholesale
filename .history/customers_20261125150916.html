@@ -1,0 +1,460 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Customers | DaanaPaani Traders</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+
+<body>
+
+  <!-- SIDEBAR -->
+  <nav class="sidebar" id="sidebar">
+    <div class="sidebar-brand">
+      <img class="brand-logo" src="assets/daana-paani-logo.svg" alt="DaanaPaani Traders" />
+      <h2>DaanaPaani Traders</h2>
+      <small>Good Food • Brighter Tomorrows</small>
+    </div>
+    <ul class="sidebar-nav">
+      <li class="nav-label">Main</li>
+      <li><a href="index.html"><span class="nav-icon">📊</span> Dashboard</a></li>
+      <li class="nav-label">Manage</li>
+      <li><a href="products.html"><span class="nav-icon">📦</span> Products</a></li>
+      <li><a href="customers.html" class="active"><span class="nav-icon">👥</span> Customers</a></li>
+      <li><a href="inventory.html"><span class="nav-icon">🗄️</span> Inventory</a></li>
+      <li><a href="billing.html"><span class="nav-icon">🧾</span> Billing</a></li>
+      <li><a href="orders.html"><span class="nav-icon">🛒</span> Orders</a></li>
+    </ul>
+    <div class="sidebar-footer">DaanaPaani Traders &nbsp;|&nbsp; PostgreSQL</div>
+  </nav>
+
+  <div class="main-content">
+    <header class="topbar">
+      <div style="display:flex;align-items:center;gap:14px;">
+        <button class="hamburger" id="hamburger">☰</button>
+        <h1>👥 Customer Management</h1>
+      </div>
+      <div class="topbar-right">
+        <span class="topbar-date" id="currentDate"></span>
+      </div>
+    </header>
+
+    <div class="page-wrapper">
+      <div class="alert" id="alertBox"></div>
+
+      <!-- STATS ROW -->
+      <div class="stats-grid" style="grid-template-columns:repeat(3,1fr);margin-bottom:24px;">
+        <div class="stat-card">
+          <div class="stat-icon blue">👥</div>
+          <div class="stat-info">
+            <h3 id="statTotal">0</h3>
+            <p>Total Customers</p>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon green">💰</div>
+          <div class="stat-info">
+            <h3 id="statCredit">₹0</h3>
+            <p>Total Credit Limit</p>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon amber">🧾</div>
+          <div class="stat-info">
+            <h3 id="statBills">0</h3>
+            <p>Total Bills</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- TABLE -->
+      <div class="table-wrapper">
+        <div class="table-controls">
+          <div>
+            <h2 style="font-family:'DM Serif Display',serif;font-size:20px;color:var(--amber);">All Customers</h2>
+          </div>
+          <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;">
+            <div class="search-wrap">
+              <input type="text" class="search-input" id="customerSearch" placeholder="Search by name or phone..." />
+            </div>
+            <button class="btn btn-primary" onclick="openAddModal()">＋ Add Customer</button>
+          </div>
+        </div>
+
+        <table>
+          <thead>
+            <tr>
+              <th>Photo</th>
+              <th>ID</th>
+              <th>Customer Name</th>
+              <th>Phone</th>
+              <th>Email</th>
+              <th>GST Number</th>
+              <th>Credit Limit</th>
+              <th>Repeat Order Days</th>
+              <th>Total Bills</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="customerTableBody"></tbody>
+        </table>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ADD / EDIT CUSTOMER MODAL -->
+  <div class="modal-overlay" id="customerModal">
+    <div class="modal">
+      <div class="modal-header">
+        <h3 id="modalTitle">Add New Customer</h3>
+        <button class="modal-close" onclick="closeModal('customerModal')">✕</button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="editCustomerId" />
+        <div class="form-grid">
+          <div class="form-group" style="grid-column:1/-1;">
+            <label>Customer / Business Name *</label>
+            <input type="text" id="cName" placeholder="e.g. Ramesh General Store" />
+          </div>
+          <div class="form-group">
+            <label>Phone Number *</label>
+            <input type="tel" id="cPhone" placeholder="10-digit mobile number" maxlength="10" />
+          </div>
+          <div class="form-group">
+            <label>Email Address</label>
+            <input type="email" id="cEmail" placeholder="customer@gmail.com" />
+          </div>
+          <div class="form-group" style="grid-column:1/-1;">
+            <label>Address</label>
+            <textarea id="cAddress" rows="2" placeholder="Full address..."></textarea>
+          </div>
+          <div class="form-group">
+            <label>GST Number</label>
+            <input type="text" id="cGST" placeholder="15-digit GST number" maxlength="15"
+              style="text-transform:uppercase;" />
+          </div>
+          <div class="form-group">
+            <label>Credit Limit (₹)</label>
+            <input type="number" id="cCredit" placeholder="50000" min="0" step="1000" />
+          </div>
+          <div class="form-group">
+            <label>Repeat Order Interval (Days)</label>
+            <input type="number" id="cRepeatDays" value="30" min="1" step="1" />
+          </div>
+          <div class="form-group" style="grid-column:1/-1;">
+            <label>Customer Photo</label>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;">
+              <button type="button" class="btn btn-outline btn-sm" onclick="document.getElementById('cPhotoCamera').click()">📷 Take Photo</button>
+              <button type="button" class="btn btn-outline btn-sm" onclick="document.getElementById('cPhotoFile').click()">📁 Choose File</button>
+              <button type="button" class="btn btn-danger btn-sm" onclick="resetCustomerPhoto()">Remove Photo</button>
+            </div>
+            <input type="file" id="cPhotoCamera" accept="image/*" capture="environment" onchange="previewCustomerPhoto(this)" style="display:none;" />
+            <input type="file" id="cPhotoFile" accept="image/*" onchange="previewCustomerPhoto(this)" style="display:none;" />
+            <img id="cPhotoPreview" src="assets/default-customer.png" alt="Customer preview" style="width:120px;height:120px;object-fit:cover;border-radius:8px;border:1px solid var(--navy-light);margin-top:8px;" />
+          </div>
+          <div class="form-group" style="grid-column:1/-1;">
+            <label>Geo Location</label>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;">
+              <button type="button" class="btn btn-outline btn-sm" onclick="captureCustomerLocation()">📍 Capture Current Location</button>
+              <button type="button" class="btn btn-danger btn-sm" onclick="clearCustomerLocation()">Remove Location</button>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px;">
+              <input type="number" id="cLatitude" step="any" placeholder="Latitude" />
+              <input type="number" id="cLongitude" step="any" placeholder="Longitude" />
+            </div>
+            <div id="cLocationText" style="font-size:12px;color:var(--muted);margin-top:6px;">Location not captured.</div>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-outline" onclick="closeModal('customerModal')">Cancel</button>
+        <button class="btn btn-primary" onclick="saveCustomer()">💾 Save Customer</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- CUSTOMER DETAIL MODAL (View history) -->
+  <div class="modal-overlay" id="viewModal">
+    <div class="modal" style="max-width:700px;">
+      <div class="modal-header">
+        <h3 id="viewModalTitle">Customer Details</h3>
+        <button class="modal-close" onclick="closeModal('viewModal')">✕</button>
+      </div>
+      <div class="modal-body" id="viewModalBody"></div>
+      <div class="modal-footer">
+        <button class="btn btn-outline" onclick="closeModal('viewModal')">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="js/app.js"></script>
+  <script>
+    /* ── Customers Page Logic ── */
+
+    function renderStats() {
+      document.getElementById('statTotal').textContent = DB.customers.length;
+      const totalCredit = DB.customers.reduce((s, c) => s + safeNumber(c.credit), 0);
+      document.getElementById('statCredit').textContent = formatCurrency(totalCredit);
+      document.getElementById('statBills').textContent = DB.bills.length;
+    }
+
+    function getBillCountForCustomer(custId) {
+      return DB.bills.filter(b => b.customerId === custId).length;
+    }
+
+    function renderCustomers(filterText = '') {
+      const tbody = document.getElementById('customerTableBody');
+      let customers = DB.customers;
+
+      if (filterText) {
+        customers = customers.filter(c =>
+          c.name.toLowerCase().includes(filterText.toLowerCase()) ||
+          c.phone.includes(filterText)
+        );
+      }
+
+      if (customers.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="10" style="text-align:center;color:var(--muted);padding:28px;">No customers found.</td></tr>';
+        return;
+      }
+
+      tbody.innerHTML = customers.map(c => `
+    <tr>
+      <td><img src="${c.photoData || 'assets/default-customer.png'}" alt="${c.name}" style="width:52px;height:52px;object-fit:cover;border-radius:8px;border:1px solid var(--navy-light);" /></td>
+      <td class="table-id">#${c.id}</td>
+      <td><strong>${c.name}</strong></td>
+      <td>📞 ${c.phone}</td>
+      <td style="color:var(--muted);">${c.email || '—'}</td>
+      <td style="font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--muted);">${c.gst || '—'}</td>
+      <td>${formatCurrency(c.credit)}</td>
+      <td><span class="badge badge-blue">${c.repeatOrderDays || 30} days</span></td>
+      <td><span class="badge badge-blue">${getBillCountForCustomer(c.id)} Bills</span></td>
+      <td style="display:flex;gap:6px;">
+        <button class="btn btn-outline btn-sm" onclick="viewCustomer(${c.id})">👁️</button>
+        <button class="btn btn-edit btn-sm" onclick="editCustomer(${c.id})">✏️</button>
+        <button class="btn btn-danger btn-sm" onclick="deleteCustomer(${c.id})">🗑️</button>
+      </td>
+    </tr>
+  `).join('');
+    }
+
+    function openAddModal() {
+      document.getElementById('editCustomerId').value = '';
+      document.getElementById('modalTitle').textContent = 'Add New Customer';
+      document.getElementById('customerModal').querySelector('form') && document.getElementById('customerModal').querySelector('form').reset();
+      ['cName', 'cPhone', 'cEmail', 'cAddress', 'cGST', 'cCredit', 'cRepeatDays', 'cLatitude', 'cLongitude'].forEach(id => {
+        document.getElementById(id).value = '';
+      });
+      document.getElementById('cPhotoCamera').value = '';
+      document.getElementById('cPhotoFile').value = '';
+      resetCustomerPhoto();
+      document.getElementById('cLocationText').textContent = 'Location not captured.';
+      openModal('customerModal');
+    }
+
+    function saveCustomer() {
+      const editId = document.getElementById('editCustomerId').value;
+      const name = document.getElementById('cName').value.trim();
+      const phone = document.getElementById('cPhone').value.trim();
+      const email = document.getElementById('cEmail').value.trim();
+      const addr = document.getElementById('cAddress').value.trim();
+      const gst = document.getElementById('cGST').value.trim().toUpperCase();
+      const credit = parseFloat(document.getElementById('cCredit').value) || 50000;
+      const repeatOrderDays = parseInt(document.getElementById('cRepeatDays').value, 10) || 30;
+      const photoData = document.getElementById('cPhotoPreview').dataset.photoData || null;
+      const latitude = document.getElementById('cLatitude').value ? Number(document.getElementById('cLatitude').value) : null;
+      const longitude = document.getElementById('cLongitude').value ? Number(document.getElementById('cLongitude').value) : null;
+
+      if (!name || !phone) { showAlert('Name and Phone are required.', 'error'); return; }
+      if (phone.length !== 10) { showAlert('Phone must be 10 digits.', 'error'); return; }
+
+      const payload = { id: editId ? parseInt(editId) : undefined, name, phone, email: email || null, address: addr, gst, credit, repeatOrderDays, photoData, latitude, longitude };
+      apiRequest('/api/customers', { method: 'POST', body: JSON.stringify(payload) })
+        .then(() => apiRequest('/api/db'))
+        .then(data => {
+          DB = data;
+          closeModal('customerModal');
+          showAlert(editId ? 'Customer updated!' : 'Customer added!');
+          renderCustomers();
+          renderStats();
+        })
+        .catch(error => showAlert(error.message, 'error'));
+    }
+
+    function previewCustomerPhoto(input) {
+      const file = input.files?.[0];
+      if (!file) return;
+
+      if (!file.type.startsWith('image/')) {
+        showAlert('Please select a valid image file.', 'error');
+        return;
+      }
+
+      const reader = new FileReader();
+      reader.onload = () => {
+        const image = new Image();
+        image.onload = () => {
+          const maxSize = 800;
+          const scale = Math.min(1, maxSize / Math.max(image.width, image.height));
+          const canvas = document.createElement('canvas');
+          canvas.width = Math.round(image.width * scale);
+          canvas.height = Math.round(image.height * scale);
+          canvas.getContext('2d').drawImage(image, 0, 0, canvas.width, canvas.height);
+          const dataUrl = canvas.toDataURL('image/jpeg', 0.82);
+          const preview = document.getElementById('cPhotoPreview');
+          preview.src = dataUrl;
+          preview.dataset.photoData = dataUrl;
+          preview.style.display = 'block';
+        };
+        image.src = reader.result;
+      };
+      reader.readAsDataURL(file);
+    }
+
+    function resetCustomerPhoto() {
+      const preview = document.getElementById('cPhotoPreview');
+      preview.src = 'assets/default-customer.png';
+      delete preview.dataset.photoData;
+      document.getElementById('cPhotoCamera').value = '';
+      document.getElementById('cPhotoFile').value = '';
+    }
+
+    function clearCustomerLocation() {
+      document.getElementById('cLatitude').value = '';
+      document.getElementById('cLongitude').value = '';
+      document.getElementById('cLocationText').textContent = 'Location not captured.';
+    }
+
+    function captureCustomerLocation() {
+      if (!navigator.geolocation) {
+        showAlert('Geolocation is not supported by this browser.', 'error');
+        return;
+      }
+
+      document.getElementById('cLocationText').textContent = 'Capturing location...';
+      navigator.geolocation.getCurrentPosition(position => {
+        const latitude = position.coords.latitude;
+        const longitude = position.coords.longitude;
+        document.getElementById('cLatitude').value = latitude;
+        document.getElementById('cLongitude').value = longitude;
+        document.getElementById('cLocationText').innerHTML = `${latitude.toFixed(7)}, ${longitude.toFixed(7)}`;
+      }, error => {
+        document.getElementById('cLocationText').textContent = 'Location capture failed.';
+        showAlert(error.message || 'Unable to capture location.', 'error');
+      }, { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 });
+    }
+
+    function editCustomer(id) {
+      const c = DB.customers.find(c => c.id === id);
+      if (!c) return;
+      document.getElementById('editCustomerId').value = c.id;
+      document.getElementById('cName').value = c.name;
+      document.getElementById('cPhone').value = c.phone;
+      document.getElementById('cEmail').value = c.email || '';
+      document.getElementById('cAddress').value = c.address || '';
+      document.getElementById('cGST').value = c.gst || '';
+      document.getElementById('cCredit').value = c.credit;
+      document.getElementById('cRepeatDays').value = c.repeatOrderDays || 30;
+      document.getElementById('cLatitude').value = c.latitude ?? '';
+      document.getElementById('cLongitude').value = c.longitude ?? '';
+      const preview = document.getElementById('cPhotoPreview');
+      if (c.photoData) {
+        preview.src = c.photoData;
+        preview.dataset.photoData = c.photoData;
+        preview.style.display = 'block';
+      } else {
+        preview.src = 'assets/default-customer.png';
+        delete preview.dataset.photoData;
+        preview.style.display = 'block';
+      }
+      document.getElementById('cLocationText').innerHTML = c.latitude != null && c.longitude != null
+        ? `${Number(c.latitude).toFixed(7)}, ${Number(c.longitude).toFixed(7)}`
+        : 'Location not captured.';
+      document.getElementById('modalTitle').textContent = 'Edit Customer';
+      openModal('customerModal');
+    }
+
+    function deleteCustomer(id) {
+      if (!confirm('Delete this customer?')) return;
+      // SQL: DELETE FROM customers WHERE customer_id = id
+      const idx = DB.customers.findIndex(c => c.id === id);
+      if (idx !== -1) { DB.customers.splice(idx, 1); showAlert('Customer deleted.'); }
+      saveDB();
+      renderCustomers();
+      renderStats();
+    }
+
+    function viewCustomer(id) {
+      const c = DB.customers.find(c => c.id === id);
+      if (!c) return;
+      const bills = DB.bills.filter(b => b.customerId === id);
+      const totalSpent = bills.reduce((s, b) => s + safeNumber(b.final), 0);
+      const totalPaid = bills.reduce((s, b) => s + safeNumber(b.paidAmount), 0);
+      const totalPending = bills.reduce((s, b) => s + safeNumber(b.balanceAmount), 0);
+
+      document.getElementById('viewModalTitle').textContent = c.name;
+      const locationHtml = c.latitude != null && c.longitude != null
+        ? `<a href="https://www.google.com/maps?q=${c.latitude},${c.longitude}" target="_blank" rel="noopener" class="btn btn-outline btn-sm">📍 Open Location</a>`
+        : '<span style="color:var(--muted);">Not captured</span>';
+
+      document.getElementById('viewModalBody').innerHTML = `
+    <img src="${c.photoData || 'assets/default-customer.png'}" alt="${c.name}" style="width:120px;height:120px;object-fit:cover;border-radius:8px;border:1px solid var(--navy-light);margin-bottom:16px;" />
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:20px;">
+      <div><span style="color:var(--muted);font-size:12px;">PHONE</span><br><strong>📞 ${c.phone}</strong></div>
+      <div><span style="color:var(--muted);font-size:12px;">EMAIL</span><br><strong>${c.email || '—'}</strong></div>
+      <div><span style="color:var(--muted);font-size:12px;">GST NO.</span><br><strong style="font-family:monospace;">${c.gst || '—'}</strong></div>
+      <div><span style="color:var(--muted);font-size:12px;">CREDIT LIMIT</span><br><strong style="color:var(--amber);">${formatCurrency(c.credit)}</strong></div>
+      <div><span style="color:var(--muted);font-size:12px;">REPEAT ORDER</span><br><strong>${c.repeatOrderDays || 30} days</strong></div>
+      <div style="grid-column:1/-1;"><span style="color:var(--muted);font-size:12px;">ADDRESS</span><br><strong>${c.address || '—'}</strong></div>
+    </div>
+    <div style="border-top:1px solid var(--navy-light);padding-top:16px;">
+      <h3 style="color:var(--amber);font-family:'DM Serif Display',serif;font-size:18px;margin-bottom:12px;">Purchase History</h3>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:14px;">
+        <div style="padding:10px;background:var(--navy);border:1px solid var(--navy-light);border-radius:8px;"><small style="color:var(--muted);">TOTAL PURCHASE</small><br><strong style="color:var(--amber);">${formatCurrency(totalSpent)}</strong></div>
+        <div style="padding:10px;background:var(--navy);border:1px solid var(--navy-light);border-radius:8px;"><small style="color:var(--muted);">TOTAL PAID</small><br><strong style="color:var(--green);">${formatCurrency(totalPaid)}</strong></div>
+        <div style="padding:10px;background:var(--navy);border:1px solid var(--navy-light);border-radius:8px;"><small style="color:var(--muted);">TOTAL PENDING</small><br><strong style="color:var(--red);">${formatCurrency(totalPending)}</strong></div>
+      </div>
+      <table style="width:100%;">
+        <thead><tr>
+          <th style="text-align:left;padding:8px 0;color:var(--amber);font-size:11px;">Bill #</th>
+          <th style="text-align:left;padding:8px 0;color:var(--amber);font-size:11px;">Date</th>
+          <th style="text-align:left;padding:8px 0;color:var(--amber);font-size:11px;">Amount</th>
+          <th style="text-align:left;padding:8px 0;color:var(--green);font-size:11px;">Paid</th>
+          <th style="text-align:left;padding:8px 0;color:var(--red);font-size:11px;">Pending</th>
+          <th style="text-align:left;padding:8px 0;color:var(--amber);font-size:11px;">Status</th>
+        </tr></thead>
+        <tbody>
+          ${bills.length === 0
+          ? '<tr><td colspan="6" style="color:var(--muted);padding:12px 0;">No bills yet.</td></tr>'
+          : bills.map(b => `
+              <tr style="border-top:1px solid rgba(255,255,255,0.05);">
+                <td style="padding:8px 0;font-family:monospace;">#${String(b.id).padStart(4, '0')}</td>
+                <td style="padding:8px 0;">${formatDate(b.date)}</td>
+                <td style="padding:8px 0;">${formatCurrency(b.final)}</td>
+                <td style="padding:8px 0;color:var(--green);">${formatCurrency(b.paidAmount)}</td>
+                <td style="padding:8px 0;color:var(--red);">${formatCurrency(b.balanceAmount ?? b.final - safeNumber(b.paidAmount))}</td>
+                <td style="padding:8px 0;">${paymentBadge(b.status)}</td>
+              </tr>`).join('')}
+        </tbody>
+      </table>
+    </div>
+  `;
+      document.getElementById('viewModalBody').insertAdjacentHTML('beforeend', `<div style="margin-top:12px;">${locationHtml}</div>`);
+      openModal('viewModal');
+    }
+
+    document.getElementById('customerSearch').addEventListener('input', e => renderCustomers(e.target.value));
+
+    document.addEventListener('DOMContentLoaded', () => {
+      appReady.then(() => {
+        renderStats();
+        renderCustomers();
+      });
+    });
+  </script>
+</body>
+
+</html>

@@ -83,9 +83,10 @@
           </div>
         </div>
 
-        <table>
+        <table class="export_to_pdf" style="width:100%;min-width:680px;">
           <thead>
             <tr>
+              <th>Photo</th>
               <th>ID</th>
               <th>Customer Name</th>
               <th>Phone</th>
@@ -143,11 +144,44 @@
             <label>Repeat Order Interval (Days)</label>
             <input type="number" id="cRepeatDays" value="30" min="1" step="1" />
           </div>
+          <div class="form-group" style="grid-column:1/-1;">
+            <label>Customer Photo</label>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;">
+              <button type="button" class="btn btn-outline btn-sm" onclick="openCustomerCamera()">📷 Take Photo</button>
+              <button type="button" class="btn btn-outline btn-sm" onclick="document.getElementById('cPhotoFile').click()">📁 Choose File</button>
+              <button type="button" class="btn btn-danger btn-sm" onclick="resetCustomerPhoto()">Remove Photo</button>
+            </div>
+            <input type="file" id="cPhotoCamera" accept="image/*" capture="environment" onchange="previewCustomerPhoto(this)" style="display:none;" />
+            <input type="file" id="cPhotoFile" accept="image/*" onchange="previewCustomerPhoto(this)" style="display:none;" />
+            <img id="cPhotoPreview" src="assets/default-customer.png" alt="Customer preview" onclick="openCustomerPhoto(this.src)" style="width:120px;height:120px;object-fit:cover;border-radius:8px;border:1px solid var(--navy-light);margin-top:8px;cursor:pointer;" />
+          </div>
+          <div class="form-group" style="grid-column:1/-1;">
+            <label>Geo Location</label>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;">
+              <button type="button" class="btn btn-outline btn-sm" onclick="captureCustomerLocation()">📍 Capture Current Location</button>
+              <button type="button" class="btn btn-danger btn-sm" onclick="clearCustomerLocation()">Remove Location</button>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px;">
+              <input type="number" id="cLatitude" step="any" placeholder="Latitude" />
+              <input type="number" id="cLongitude" step="any" placeholder="Longitude" />
+            </div>
+            <div id="cLocationText" style="font-size:12px;color:var(--muted);margin-top:6px;">Location not captured.</div>
+          </div>
         </div>
       </div>
       <div class="modal-footer">
         <button class="btn btn-outline" onclick="closeModal('customerModal')">Cancel</button>
         <button class="btn btn-primary" onclick="saveCustomer()">💾 Save Customer</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- CUSTOMER PHOTO ZOOM MODAL -->
+  <div class="modal-overlay" id="customerPhotoModal">
+    <div class="modal" style="max-width:min(760px,calc(100vw-24px));background:transparent;border:none;box-shadow:none;">
+      <div class="modal-body" style="padding:0;max-height:calc(100dvh-24px);overflow:hidden;display:flex;align-items:center;justify-content:center;">
+        <button type="button" class="modal-close" onclick="closeModal('customerPhotoModal')" style="position:absolute;top:18px;right:18px;background:#fff;border-radius:50%;width:38px;height:38px;z-index:2;">✕</button>
+        <img id="customerPhotoZoom" src="assets/default-customer.png" alt="Customer photo" style="width:auto;height:auto;max-width:100%;max-height:calc(100dvh-24px);object-fit:contain;border-radius:8px;box-shadow:0 12px 40px rgba(0,0,0,.35);" />
       </div>
     </div>
   </div>
@@ -193,12 +227,13 @@
       }
 
       if (customers.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--muted);padding:28px;">No customers found.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="10" style="text-align:center;color:var(--muted);padding:28px;">No customers found.</td></tr>';
         return;
       }
 
       tbody.innerHTML = customers.map(c => `
     <tr>
+      <td><img src="${c.photoData || 'assets/default-customer.png'}" alt="${c.name}" onclick="openCustomerPhoto('${(c.photoData || 'assets/default-customer.png').replace(/'/g, "&#39;")}')" style="width:52px;height:52px;object-fit:cover;border-radius:8px;border:1px solid var(--navy-light);cursor:pointer;" /></td>
       <td class="table-id">#${c.id}</td>
       <td><strong>${c.name}</strong></td>
       <td>📞 ${c.phone}</td>
@@ -220,9 +255,13 @@
       document.getElementById('editCustomerId').value = '';
       document.getElementById('modalTitle').textContent = 'Add New Customer';
       document.getElementById('customerModal').querySelector('form') && document.getElementById('customerModal').querySelector('form').reset();
-      ['cName', 'cPhone', 'cEmail', 'cAddress', 'cGST', 'cCredit', 'cRepeatDays'].forEach(id => {
+      ['cName', 'cPhone', 'cEmail', 'cAddress', 'cGST', 'cCredit', 'cRepeatDays', 'cLatitude', 'cLongitude'].forEach(id => {
         document.getElementById(id).value = '';
       });
+      document.getElementById('cPhotoCamera').value = '';
+      document.getElementById('cPhotoFile').value = '';
+      resetCustomerPhoto();
+      document.getElementById('cLocationText').textContent = 'Location not captured.';
       openModal('customerModal');
     }
 
@@ -235,11 +274,14 @@
       const gst = document.getElementById('cGST').value.trim().toUpperCase();
       const credit = parseFloat(document.getElementById('cCredit').value) || 50000;
       const repeatOrderDays = parseInt(document.getElementById('cRepeatDays').value, 10) || 30;
+      const photoData = document.getElementById('cPhotoPreview').dataset.photoData || null;
+      const latitude = document.getElementById('cLatitude').value ? Number(document.getElementById('cLatitude').value) : null;
+      const longitude = document.getElementById('cLongitude').value ? Number(document.getElementById('cLongitude').value) : null;
 
       if (!name || !phone) { showAlert('Name and Phone are required.', 'error'); return; }
       if (phone.length !== 10) { showAlert('Phone must be 10 digits.', 'error'); return; }
 
-      const payload = { id: editId ? parseInt(editId) : undefined, name, phone, email: email || null, address: addr, gst, credit, repeatOrderDays };
+      const payload = { id: editId ? parseInt(editId) : undefined, name, phone, email: email || null, address: addr, gst, credit, repeatOrderDays, photoData, latitude, longitude };
       apiRequest('/api/customers', { method: 'POST', body: JSON.stringify(payload) })
         .then(() => apiRequest('/api/db'))
         .then(data => {
@@ -250,6 +292,81 @@
           renderStats();
         })
         .catch(error => showAlert(error.message, 'error'));
+    }
+
+    function openCustomerCamera() {
+      const cameraInput = document.getElementById('cPhotoCamera');
+      cameraInput.removeAttribute('multiple');
+      cameraInput.setAttribute('capture', 'environment');
+      cameraInput.click();
+    }
+
+    function openCustomerPhoto(photoUrl) {
+      document.getElementById('customerPhotoZoom').src = photoUrl;
+      openModal('customerPhotoModal');
+    }
+
+    function previewCustomerPhoto(input) {
+      const file = input.files?.[0];
+      if (!file) return;
+
+      if (!file.type.startsWith('image/')) {
+        showAlert('Please select a valid image file.', 'error');
+        return;
+      }
+
+      const reader = new FileReader();
+      reader.onload = () => {
+        const image = new Image();
+        image.onload = () => {
+          const maxSize = 800;
+          const scale = Math.min(1, maxSize / Math.max(image.width, image.height));
+          const canvas = document.createElement('canvas');
+          canvas.width = Math.round(image.width * scale);
+          canvas.height = Math.round(image.height * scale);
+          canvas.getContext('2d').drawImage(image, 0, 0, canvas.width, canvas.height);
+          const dataUrl = canvas.toDataURL('image/jpeg', 0.82);
+          const preview = document.getElementById('cPhotoPreview');
+          preview.src = dataUrl;
+          preview.dataset.photoData = dataUrl;
+          preview.style.display = 'block';
+        };
+        image.src = reader.result;
+      };
+      reader.readAsDataURL(file);
+    }
+
+    function resetCustomerPhoto() {
+      const preview = document.getElementById('cPhotoPreview');
+      preview.src = 'assets/default-customer.png';
+      delete preview.dataset.photoData;
+      document.getElementById('cPhotoCamera').value = '';
+      document.getElementById('cPhotoFile').value = '';
+    }
+
+    function clearCustomerLocation() {
+      document.getElementById('cLatitude').value = '';
+      document.getElementById('cLongitude').value = '';
+      document.getElementById('cLocationText').textContent = 'Location not captured.';
+    }
+
+    function captureCustomerLocation() {
+      if (!navigator.geolocation) {
+        showAlert('Geolocation is not supported by this browser.', 'error');
+        return;
+      }
+
+      document.getElementById('cLocationText').textContent = 'Capturing location...';
+      navigator.geolocation.getCurrentPosition(position => {
+        const latitude = position.coords.latitude;
+        const longitude = position.coords.longitude;
+        document.getElementById('cLatitude').value = latitude;
+        document.getElementById('cLongitude').value = longitude;
+        document.getElementById('cLocationText').innerHTML = `${latitude.toFixed(7)}, ${longitude.toFixed(7)}`;
+      }, error => {
+        document.getElementById('cLocationText').textContent = 'Location capture failed.';
+        showAlert(error.message || 'Unable to capture location.', 'error');
+      }, { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 });
     }
 
     function editCustomer(id) {
@@ -263,6 +380,21 @@
       document.getElementById('cGST').value = c.gst || '';
       document.getElementById('cCredit').value = c.credit;
       document.getElementById('cRepeatDays').value = c.repeatOrderDays || 30;
+      document.getElementById('cLatitude').value = c.latitude ?? '';
+      document.getElementById('cLongitude').value = c.longitude ?? '';
+      const preview = document.getElementById('cPhotoPreview');
+      if (c.photoData) {
+        preview.src = c.photoData;
+        preview.dataset.photoData = c.photoData;
+        preview.style.display = 'block';
+      } else {
+        preview.src = 'assets/default-customer.png';
+        delete preview.dataset.photoData;
+        preview.style.display = 'block';
+      }
+      document.getElementById('cLocationText').innerHTML = c.latitude != null && c.longitude != null
+        ? `${Number(c.latitude).toFixed(7)}, ${Number(c.longitude).toFixed(7)}`
+        : 'Location not captured.';
       document.getElementById('modalTitle').textContent = 'Edit Customer';
       openModal('customerModal');
     }
@@ -286,7 +418,12 @@
       const totalPending = bills.reduce((s, b) => s + safeNumber(b.balanceAmount), 0);
 
       document.getElementById('viewModalTitle').textContent = c.name;
+      const locationHtml = c.latitude != null && c.longitude != null
+        ? `<a href="https://www.google.com/maps?q=${c.latitude},${c.longitude}" target="_blank" rel="noopener" class="btn btn-outline btn-sm">📍 Open Location</a>`
+        : '<span style="color:var(--muted);">Not captured</span>';
+
       document.getElementById('viewModalBody').innerHTML = `
+    <img src="${c.photoData || 'assets/default-customer.png'}" alt="${c.name}" onclick="openCustomerPhoto('${(c.photoData || 'assets/default-customer.png').replace(/'/g, "&#39;")}')" style="width:120px;height:120px;object-fit:cover;border-radius:8px;border:1px solid var(--navy-light);margin-bottom:16px;cursor:pointer;" />
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:20px;">
       <div><span style="color:var(--muted);font-size:12px;">PHONE</span><br><strong>📞 ${c.phone}</strong></div>
       <div><span style="color:var(--muted);font-size:12px;">EMAIL</span><br><strong>${c.email || '—'}</strong></div>
@@ -327,6 +464,7 @@
       </table>
     </div>
   `;
+      document.getElementById('viewModalBody').insertAdjacentHTML('beforeend', `<div style="margin-top:12px;">${locationHtml}</div>`);
       openModal('viewModal');
     }
 

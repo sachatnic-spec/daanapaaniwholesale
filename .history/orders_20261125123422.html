@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Orders | DaanaPaani Traders</title>
+    <link rel="stylesheet" href="css/style.css" />
+</head>
+
+<body>
+    <nav class="sidebar">
+        <div class="sidebar-brand"><img class="brand-logo" src="assets/daana-paani-logo.svg" alt="DaanaPaani Traders">
+            <h2>DaanaPaani Traders</h2><small>Good Food • Brighter Tomorrows</small>
+        </div>
+        <ul class="sidebar-nav">
+            <li class="nav-label">MAIN</li>
+            <li><a href="index.html"><span class="nav-icon">📊</span> Dashboard</a></li>
+            <li class="nav-label">BUSINESS MANAGEMENT</li>
+            <li><a href="products.html"><span class="nav-icon">📦</span> Products</a></li>
+            <li><a href="customers.html"><span class="nav-icon">👥</span> Customers</a></li>
+            <li><a href="orders.html" class="active"><span class="nav-icon">🛒</span> Orders</a></li>
+            <li><a href="inventory.html"><span class="nav-icon">🗄️</span> Inventory</a></li>
+            <li><a href="billing.html"><span class="nav-icon">🧾</span> Billing & Sales</a></li>
+        </ul>
+        <div class="sidebar-footer">DaanaPaani Traders &nbsp;|&nbsp; PostgreSQL</div>
+    </nav>
+    <div id="sidebarOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:99;"></div>
+    <div class="main-content">
+        <header class="topbar">
+            <div style="display:flex;align-items:center;gap:14px;"><button class="hamburger" id="hamburger">☰</button>
+                <h1>🛒 Order Management</h1>
+            </div>
+            <div class="topbar-right"><span class="topbar-date" id="currentDate"></span></div>
+        </header>
+        <div class="page-wrapper">
+            <div class="alert" id="alertBox"></div>
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-icon amber">🛒</div>
+                    <div class="stat-info">
+                        <h3 id="orderToday">0</h3>
+                        <p>Today's Orders</p>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon blue">⏳</div>
+                    <div class="stat-info">
+                        <h3 id="orderPending">0</h3>
+                        <p>Pending Delivery</p>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon green">✅</div>
+                    <div class="stat-info">
+                        <h3 id="orderDelivered">0</h3>
+                        <p>Delivered</p>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon red">🧾</div>
+                    <div class="stat-info">
+                        <h3 id="orderNotBilled">0</h3>
+                        <p>Not Billed</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="table-wrapper">
+                <div class="table-controls">
+                    <h2>Order Dashboard</h2>
+                    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+                        <input type="date" id="orderDateFilter" class="search-input" style="padding-left:12px"
+                            onchange="renderOrders()" />
+                        <select id="orderStatusFilter" onchange="renderOrders()">
+                            <option value="">All Delivery Status</option>
+                            <option value="Pending">Pending</option>
+                            <option value="In Progress">In Progress</option>
+                            <option value="Delivered">Delivered</option>
+                            <option value="Cancelled">Cancelled</option>
+                        </select>
+                        <input type="text" id="orderSearch" class="search-input" placeholder="Search order number..."
+                            oninput="renderOrders()" />
+                        <button class="btn btn-primary" onclick="openModal('orderModal')">＋ Record Order</button>
+                    </div>
+                </div>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Order #</th>
+                            <th>Date</th>
+                            <th>Customer</th>
+                            <th>Items</th>
+                            <th>Delivery</th>
+                            <th>Delivery Date</th>
+                            <th>Bill</th>
+                            <th>Recorded By</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="orderTableBody"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="orderModal">
+        <div class="modal" style="max-width:760px">
+            <div class="modal-header">
+                <h3>Record New Order</h3><button class="modal-close" onclick="closeModal('orderModal')">✕</button>
+            </div>
+            <div class="modal-body">
+                <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px">
+                    <div class="form-group"><label>Customer *</label><select id="orderCustomer"></select></div>
+                    <div class="form-group"><label>Order Date *</label><input type="date" id="orderDate" /></div>
+                    <div class="form-group"><label>Delivery Status</label><select id="orderDeliveryStatus">
+                            <option>Pending</option>
+                            <option>In Progress</option>
+                            <option>Delivered</option>
+                            <option>Cancelled</option>
+                        </select></div>
+                    <div class="form-group"><label>Expected/Delivery Date</label><input type="date"
+                            id="orderDeliveryDate" /></div>
+                    <div class="form-group" style="grid-column:span 2"><label>Notes</label><input type="text"
+                            id="orderNotes" placeholder="Order instructions" /></div>
+                </div>
+                <div
+                    style="margin-top:18px;background:var(--navy);border:1px solid var(--navy-light);border-radius:8px;padding:14px">
+                    <h4 style="color:var(--amber);margin-bottom:10px">Add Items</h4>
+                    <div style="display:grid;grid-template-columns:2fr 1fr 1fr auto;gap:10px;align-items:end">
+                        <div class="form-group" style="margin:0"><label>Product</label><select
+                                id="orderProduct"></select></div>
+                        <div class="form-group" style="margin:0"><label>Quantity</label><input type="number"
+                                id="orderQty" value="1" min="1" /></div>
+                        <div class="form-group" style="margin:0"><label>Rate</label><input type="number" id="orderRate"
+                                min="0" step="0.01" /></div>
+                        <button class="btn btn-primary" onclick="addOrderItem()">Add</button>
+                    </div>
+                </div>
+                <div id="orderCartSection" style="display:none;margin-top:14px">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Product</th>
+                                <th>Qty</th>
+                                <th>Rate</th>
+                                <th>Subtotal</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody id="orderCartBody"></tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="modal-footer"><button class="btn btn-outline"
+                    onclick="closeModal('orderModal')">Cancel</button><button class="btn btn-primary"
+                    onclick="saveOrder()">Record Order</button></div>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="orderStatusModal">
+        <div class="modal" style="max-width:420px">
+            <div class="modal-header">
+                <h3>Update Order Status</h3><button class="modal-close"
+                    onclick="closeModal('orderStatusModal')">✕</button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="statusOrderId" />
+                <div class="form-group"><label>Current Status</label><select id="statusOrderStatus">
+                        <option>Pending</option>
+                        <option>In Progress</option>
+                        <option>Delivered</option>
+                        <option>Cancelled</option>
+                    </select></div>
+                <div class="form-group" style="margin-top:12px"><label>Delivery Date</label><input type="date"
+                        id="statusOrderDeliveryDate" /></div>
+            </div>
+            <div class="modal-footer"><button class="btn btn-outline"
+                    onclick="closeModal('orderStatusModal')">Cancel</button><button class="btn btn-primary"
+                    onclick="saveOrderStatus()">Update Status</button></div>
+        </div>
+    </div>
+
+    <script src="js/app.js"></script>
+    <script>
+        let orderCart = [];
+        function populateOrderSelects() {
+            document.getElementById('orderCustomer').innerHTML = DB.customers.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
+            document.getElementById('orderProduct').innerHTML = DB.products.map(p => `<option value="${p.id}" data-price="${p.unitPrice}">${p.name}</option>`).join('');
+            document.getElementById('orderDate').value = todayISO();
+            document.getElementById('orderDateFilter').value = '';
+            updateOrderRate();
+        }
+        function updateOrderRate() {
+            const customerId = parseInt(document.getElementById('orderCustomer').value);
+            const product = document.getElementById('orderProduct');
+            const productId = parseInt(product.value);
+            const custom = (DB.customerRates || []).find(r => r.customerId === customerId && r.productId === productId);
+            document.getElementById('orderRate').value = (custom?.customUnitPrice || Number(product.selectedOptions[0]?.dataset.price) || 0).toFixed(2);
+        }
+        function addOrderItem() {
+            const productId = parseInt(document.getElementById('orderProduct').value);
+            const qty = parseInt(document.getElementById('orderQty').value) || 1;
+            const rate = Number(document.getElementById('orderRate').value) || 0;
+            const product = DB.products.find(p => p.id === productId); if (!product) return;
+            const existing = orderCart.find(i => i.productId === productId);
+            if (existing) { existing.qty += qty; existing.subtotal = existing.qty * existing.unitPrice; } else { orderCart.push({ productId, name: product.name, qty, unitPrice: rate, subtotal: qty * rate }); }
+            renderOrderCart();
+        }
+        function renderOrderCart() {
+            const section = document.getElementById('orderCartSection'); section.style.display = orderCart.length ? 'block' : 'none';
+            document.getElementById('orderCartBody').innerHTML = orderCart.map((i, index) => `<tr><td>${i.name}</td><td>${i.qty}</td><td>${formatCurrency(i.unitPrice)}</td><td>${formatCurrency(i.subtotal)}</td><td><button class="btn btn-danger btn-sm" onclick="orderCart.splice(${index},1);renderOrderCart()">✕</button></td></tr>`).join('');
+        }
+        async function saveOrder() {
+            const payload = { customerId: parseInt(document.getElementById('orderCustomer').value), orderDate: document.getElementById('orderDate').value, deliveryStatus: document.getElementById('orderDeliveryStatus').value, deliveryDate: document.getElementById('orderDeliveryDate').value || null, notes: document.getElementById('orderNotes').value.trim(), items: orderCart };
+            if (!payload.orderDate || !payload.items.length) { showAlert('Select date and add at least one item.', 'error'); return; }
+            try { await apiRequest('/api/orders', { method: 'POST', body: JSON.stringify(payload) }); DB = await apiRequest('/api/db'); orderCart = []; renderOrderCart(); closeModal('orderModal'); showAlert('Order recorded successfully!'); renderOrders(); } catch (error) { showAlert(error.message, 'error'); }
+        }
+        function renderOrders() {
+            const dateFilter = document.getElementById('orderDateFilter').value;
+            const statusFilter = document.getElementById('orderStatusFilter').value;
+            const search = document.getElementById('orderSearch')?.value.trim().toLowerCase() || '';
+            let orders = [...(DB.orders || [])];
+            if (search) orders = orders.filter(o => String(o.id).padStart(4, '0').includes(search.replace(/^#/, '')));
+            if (dateFilter) orders = orders.filter(o => o.orderDate === dateFilter);
+            if (statusFilter) orders = orders.filter(o => o.deliveryStatus === statusFilter);
+            const today = todayISO();
+            document.getElementById('orderToday').textContent = (DB.orders || []).filter(o => o.orderDate === today).length;
+            document.getElementById('orderPending').textContent = (DB.orders || []).filter(o => o.deliveryStatus === 'Pending' || o.deliveryStatus === 'In Progress').length;
+            document.getElementById('orderDelivered').textContent = (DB.orders || []).filter(o => o.deliveryStatus === 'Delivered').length;
+            document.getElementById('orderNotBilled').textContent = (DB.orders || []).filter(o => !o.billId).length;
+            document.getElementById('orderTableBody').innerHTML = orders.length ? orders.map(o => {
+                const items = (DB.orderItems || []).filter(i => i.orderId === o.id);
+                const statusClass = o.deliveryStatus === 'Delivered' ? 'badge-green' : o.deliveryStatus === 'In Progress' ? 'badge-blue' : o.deliveryStatus === 'Cancelled' ? 'badge-red' : 'badge-yellow';
+                return `<tr><td>#${String(o.id).padStart(4, '0')}</td><td>${formatDate(o.orderDate)}</td><td>${getCustomerName(o.customerId)}</td><td>${items.length} items</td><td><span class="badge ${statusClass}">${o.deliveryStatus}</span></td><td>${o.deliveryDate ? formatDate(o.deliveryDate) : '—'}</td><td>${o.billId ? '#' + String(o.billId).padStart(4, '0') : '<span class="badge badge-red">Not Billed</span>'}</td><td>${o.createdByName || '—'}</td><td><button class="btn btn-outline btn-sm" onclick="openOrderStatus(${o.id})">Update Status</button></td></tr>`;
+            }).join('') : `<tr><td colspan="9" style="text-align:center;color:var(--muted);padding:24px">No orders found.</td></tr>`;
+        }
+        async function openOrderStatus(id) {
+            const o = (DB.orders || []).find(x => x.id === id); if (!o) return;
+            document.getElementById('statusOrderId').value = o.id;
+            document.getElementById('statusOrderStatus').value = o.deliveryStatus;
+            document.getElementById('statusOrderDeliveryDate').value = o.deliveryDate || '';
+            openModal('orderStatusModal');
+        }
+        async function saveOrderStatus() {
+            const id = parseInt(document.getElementById('statusOrderId').value);
+            const deliveryStatus = document.getElementById('statusOrderStatus').value;
+            const deliveryDate = document.getElementById('statusOrderDeliveryDate').value || null;
+            try { await apiRequest(`/api/orders/${id}/status`, { method: 'POST', body: JSON.stringify({ deliveryStatus, deliveryDate }) }); DB = await apiRequest('/api/db'); closeModal('orderStatusModal'); showAlert('Order status updated!'); renderOrders(); } catch (error) { showAlert(error.message, 'error'); }
+        }
+        document.getElementById('orderCustomer').addEventListener?.('change', updateOrderRate);
+        document.getElementById('orderProduct').addEventListener?.('change', updateOrderRate);
+        document.addEventListener('DOMContentLoaded', () => { appReady.then(() => { populateOrderSelects(); renderOrders(); }); });
+    </script>
+</body>
+
+</html>

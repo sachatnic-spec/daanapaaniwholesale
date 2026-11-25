@@ -36,6 +36,44 @@ async function addAudit(req, action, entityType, entityId, details) {
         VALUES($1,$2,$3,$4,$5,$6,$7)`, [req.user.userId, req.user.username, action, entityType, entityId, details, req.ip || null]);
 }
 
+async function deductInventory(client, productId, qty, billId) {
+    const quantity = Number(qty);
+
+    if (!Number.isFinite(quantity) || quantity <= 0) {
+        throw new Error(`Invalid quantity for product ID ${productId}`);
+    }
+
+    // Deduct stock only if sufficient inventory is available
+    const result = await client.query(
+        `UPDATE products
+         SET stock_qty = stock_qty - $1
+         WHERE product_id = $2
+         AND stock_qty >= $1
+         RETURNING stock_qty`,
+        [quantity, productId]
+    );
+
+    if (result.rowCount === 0) {
+        throw new Error(
+            `Insufficient stock or product not found. Product ID: ${productId}`
+        );
+    }
+
+    // Maintain inventory transaction history
+    await client.query(
+        `INSERT INTO inventory_log
+         (product_id, change_type, quantity, remarks)
+         VALUES ($1, $2, $3, $4)`,
+        [
+            productId,
+            'Sale',
+            -quantity,
+            `Stock deducted for Bill #${billId}`
+        ]
+    );
+}
+
+
 app.post('/api/auth/login', async (req, res, next) => {
     try {
         const username = String(req.body.username || '').trim().toLowerCase();
@@ -73,6 +111,9 @@ async function initDatabase() {
     await pool.query(`ALTER TABLE bills ADD COLUMN IF NOT EXISTS balance_amount NUMERIC(12,2) NOT NULL DEFAULT 0`);
     await pool.query(`ALTER TABLE bills ADD COLUMN IF NOT EXISTS due_date DATE`);
     await pool.query(`ALTER TABLE customers ADD COLUMN IF NOT EXISTS repeat_order_days INTEGER NOT NULL DEFAULT 30`);
+    await pool.query(`ALTER TABLE customers ADD COLUMN IF NOT EXISTS photo_data TEXT`);
+    await pool.query(`ALTER TABLE customers ADD COLUMN IF NOT EXISTS latitude NUMERIC(10,7)`);
+    await pool.query(`ALTER TABLE customers ADD COLUMN IF NOT EXISTS longitude NUMERIC(10,7)`);
     await pool.query(`CREATE TABLE IF NOT EXISTS customer_rates (
         customer_id INTEGER NOT NULL REFERENCES customers(customer_id) ON DELETE CASCADE,
         product_id INTEGER NOT NULL REFERENCES products(product_id) ON DELETE CASCADE,
@@ -138,7 +179,7 @@ app.get('/api/db', requireAuth, async (_req, res, next) => {
         const [categories, products, customers, bills, inventory, customerRates, orders, orderItems, billItems] = await Promise.all([
             pool.query('SELECT category_id id, category_name name FROM categories ORDER BY category_id'),
             pool.query('SELECT product_id id, product_name name, category_id "categoryId", unit_price "unitPrice", cost_price "costPrice", unit_type unit, stock_qty stock, reorder_level reorder FROM products ORDER BY product_id'),
-            pool.query('SELECT customer_id id, customer_name name, phone, email, address, gst_number gst, credit_limit credit, repeat_order_days "repeatOrderDays" FROM customers ORDER BY customer_id'),
+            pool.query('SELECT customer_id id, customer_name name, phone, email, address, gst_number gst, credit_limit credit, repeat_order_days "repeatOrderDays", photo_data "photoData", latitude, longitude FROM customers ORDER BY customer_id'),
             pool.query(`SELECT b.bill_id id,b.customer_id "customerId",b.bill_date::text date,b.due_date::text "dueDate",b.total_amount total,b.discount_pct discount,b.tax_pct tax,b.final_amount final,b.paid_amount "paidAmount",b.balance_amount "balanceAmount",b.payment_status status,b.payment_mode mode,b.created_by "createdBy",b.paid_by "paidBy",c1.username "createdByName",c2.username "paidByName" FROM bills b LEFT JOIN app_users c1 ON c1.user_id=b.created_by LEFT JOIN app_users c2 ON c2.user_id=b.paid_by ORDER BY b.bill_id`),
             pool.query('SELECT il.log_id id, il.product_id "productId", il.change_type type, il.quantity qty, il.remarks, il.log_date::text date FROM inventory_log il ORDER BY il.log_id'),
             pool.query('SELECT customer_id "customerId", product_id "productId", custom_unit_price "customUnitPrice" FROM customer_rates'),
@@ -169,8 +210,8 @@ app.post('/api/customers', requireAuth, async (req, res, next) => {
     try {
         const c = req.body;
         let result;
-        if (c.id) result = await pool.query(`UPDATE customers SET customer_name=$1,phone=$2,email=$3,address=$4,gst_number=$5,credit_limit=$6,repeat_order_days=$7 WHERE customer_id=$8 RETURNING customer_id`, [c.name, c.phone, c.email, c.address, c.gst, c.credit, c.repeatOrderDays || 30, c.id]);
-        else result = await pool.query(`INSERT INTO customers(customer_name,phone,email,address,gst_number,credit_limit,repeat_order_days) VALUES($1,$2,$3,$4,$5,$6,$7) RETURNING customer_id`, [c.name, c.phone, c.email, c.address, c.gst, c.credit, c.repeatOrderDays || 30]);
+        if (c.id) result = await pool.query(`UPDATE customers SET customer_name=$1,phone=$2,email=$3,address=$4,gst_number=$5,credit_limit=$6,repeat_order_days=$7,photo_data=$8,latitude=$9,longitude=$10 WHERE customer_id=$11 RETURNING customer_id`, [c.name, c.phone, c.email, c.address, c.gst, c.credit, c.repeatOrderDays || 30, c.photoData || null, c.latitude ?? null, c.longitude ?? null, c.id]);
+        else result = await pool.query(`INSERT INTO customers(customer_name,phone,email,address,gst_number,credit_limit,repeat_order_days,photo_data,latitude,longitude) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING customer_id`, [c.name, c.phone, c.email, c.address, c.gst, c.credit, c.repeatOrderDays || 30, c.photoData || null, c.latitude ?? null, c.longitude ?? null]);
         res.json({ id: result.rows[0].customer_id });
     } catch (error) { next(error); }
 });
@@ -191,6 +232,13 @@ app.post('/api/bills', requireAuth, async (req, res, next) => {
         const billId = bill.rows[0].bill_id;
         for (const item of b.items || []) {
             await client.query('INSERT INTO bill_items(bill_id,product_id,quantity,unit_price,subtotal) VALUES($1,$2,$3,$4,$5)', [billId, item.productId, item.qty, item.unitPrice, item.subtotal]);
+            // 2. Deduct inventory
+            await deductInventory(
+                client,
+                item.productId,
+                item.qty,
+                billId
+            );
             await client.query(`INSERT INTO customer_rates(customer_id,product_id,custom_unit_price,updated_at)
                 VALUES($1,$2,$3,CURRENT_TIMESTAMP)
                 ON CONFLICT (customer_id,product_id)

@@ -7,68 +7,7 @@
   <title>Billing | DaanaPaani Traders</title>
   <link rel="stylesheet" href="css/style.css" />
   <style>
-    @media print {
-      @page {
-        size: A4 portrait;
-        margin: 8mm;
-      }
-
-      body {
-        background: white !important;
-        color: black !important;
-        width: 100% !important;
-      }
-
-      .sidebar,
-      .topbar,
-      .no-print,
-      .modal-header,
-      .modal-footer {
-        display: none !important;
-      }
-
-      .main-content {
-        margin-left: 0 !important;
-        width: 100% !important;
-      }
-
-      #previewModal {
-        position: absolute !important;
-        inset: 0 !important;
-        display: block !important;
-        width: 100% !important;
-        height: auto !important;
-        overflow: visible !important;
-        background: white !important;
-      }
-
-      #previewModal .modal,
-      #receiptContent,
-      .bill-receipt {
-        position: static !important;
-        width: 100% !important;
-        max-width: 194mm !important;
-        height: auto !important;
-        max-height: none !important;
-        margin: 0 auto !important;
-        padding: 4mm !important;
-        overflow: visible !important;
-        border: none !important;
-        box-sizing: border-box !important;
-        background: white !important;
-        color: black !important;
-      }
-
-      .bill-receipt table {
-        width: 100% !important;
-        table-layout: fixed !important;
-      }
-
-      .bill-receipt {
-        font-size: 11px !important;
-        break-inside: avoid-page;
-      }
-    }
+    /* Print styles handled in css/style.css */
   </style>
 </head>
 
@@ -255,7 +194,7 @@
 
         <!-- Cart / Line Items Table -->
         <div id="cartSection" style="display:none;">
-          <table style="margin-bottom:16px;">
+          <table style="margin-bottom:16px;" class="export_to_pdf">
             <thead>
               <tr>
                 <th>Product</th>
@@ -271,7 +210,7 @@
 
         <!-- Totals -->
         <div style="display:flex;justify-content:flex-end;">
-          <table class="bill-totals" style="width:260px;">
+          <table class="bill-totals export_to_pdf" style="width:260px;">
             <tbody>
               <tr>
                 <td>Subtotal</td>
@@ -306,7 +245,7 @@
       <div class="modal-body" id="receiptContent"></div>
       <div class="modal-footer">
         <button class="btn btn-outline" onclick="closeModal('previewModal')">Close</button>
-        <button class="btn btn-primary no-print" onclick="window.print()">🖨️ Print</button>
+        <button class="btn btn-primary no-print" onclick="printBill()">🖨️ Print</button>
       </div>
     </div>
   </div>
@@ -374,6 +313,23 @@
       <div class="modal-footer">
         <button class="btn btn-outline" onclick="closeModal('latestBillModal')">Close</button>
       </div>
+    </div>
+  </div>
+
+  <!-- PRINT AREA (only visible during print) -->
+  <div id="printArea" style="display:none;"></div>
+
+  <!-- INVOICE MODAL -->
+  <div class="modal-overlay" id="invoiceModal" style="z-index:1100;">
+    <div class="modal" style="max-width:900px;width:95vw;height:90vh;display:flex;flex-direction:column;padding:0;">
+      <div class="modal-header" style="padding:14px 20px;flex-shrink:0;">
+        <h3>Invoice Preview</h3>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <button class="btn btn-outline btn-sm" onclick="document.getElementById('invoiceFrame').contentWindow.print()">🖨️ Print</button>
+          <button class="modal-close" onclick="closeModal('invoiceModal')">✕</button>
+        </div>
+      </div>
+      <iframe id="invoiceFrame" src="" style="flex:1;border:none;width:100%;border-radius:0 0 12px 12px;"></iframe>
     </div>
   </div>
 
@@ -590,6 +546,11 @@
 
 
     function viewBill(id) {
+      document.getElementById('invoiceFrame').src = 'invoice.html?id=' + id;
+      openModal('invoiceModal');
+    }
+
+    function viewBill_old(id) {
       const b = DB.bills.find(b => b.id === id);
       if (!b) return;
 
@@ -627,167 +588,150 @@
         })
         : (b.items || []);
 
-      const itemsHTML = receiptItems.map(item => `
-        <tr>
-            <td style="padding:8px 4px;border-bottom:1px solid var(--navy-light);">
-                ${item.name}
-            </td>
-            <td style="padding:8px 4px;text-align:center;border-bottom:1px solid var(--navy-light);">
-                ${item.qty}
-            </td>
-            <td style="padding:8px 4px;text-align:right;border-bottom:1px solid var(--navy-light);">
-                ${formatCurrency(Number(item.unitPrice) || 0)}
-            </td>
-            <td style="padding:8px 4px;text-align:right;border-bottom:1px solid var(--navy-light);">
-                ${formatCurrency(Number(item.subtotal) || 0)}
-            </td>
-        </tr>
-    `).join('');
-
-      const paymentStatus =
-        balanceAmount <= 0 ? 'Paid' :
-          paidAmount > 0 ? 'Partial' : 'Unpaid';
+      const paymentStatus = balanceAmount <= 0 ? 'Paid' : paidAmount > 0 ? 'Partial' : 'Unpaid';
+      const statusDot = paymentStatus === 'Paid' ? '#16a34a' : paymentStatus === 'Partial' ? '#d97706' : '#f59e0b';
+      const statusBg  = paymentStatus === 'Paid' ? '#dcfce7' : paymentStatus === 'Partial' ? '#fef3c7' : '#fef9c3';
 
       document.getElementById('receiptContent').innerHTML = `
-        <div class="bill-receipt">
+      <div style="font-family:'Segoe UI',Arial,sans-serif;color:#1e1b2e;background:#fff;border:1px solid #e5e7eb;border-radius:12px;overflow:hidden;max-width:720px;margin:0 auto;">
 
-            <!-- Header -->
-            <div class="receipt-header">
-                <div style="margin-bottom:4px;">
-                    <img src="assets/daana-paani-logo.svg"
-                         alt="DaanaPaani"
-                         style="width:48px;height:48px;object-fit:contain;">
-                </div>
-                <h3>DaanaPaani Traders</h3>
-                <small style="color:var(--muted);">
-                    Good Food • Brighter Tomorrows
-                </small>
+        <!-- HEADER -->
+        <div style="background:linear-gradient(135deg,#6d28d9,#4c1d95);padding:24px 28px;display:flex;align-items:center;justify-content:space-between;">
+          <div style="display:flex;align-items:center;gap:14px;">
+            <div style="background:rgba(255,255,255,0.15);border-radius:10px;padding:10px;width:52px;height:52px;display:flex;align-items:center;justify-content:center;">
+              <img src="assets/daana-paani-logo.svg" style="width:36px;height:36px;object-fit:contain;filter:brightness(0) invert(1);">
             </div>
-
-            <p style="margin-top:12px;font-size:12px;">
-                Bill No:
-                <strong style="color:var(--amber);">
-                    #${String(b.id).padStart(4, '0')}
-                </strong>
-                &nbsp;|&nbsp;
-                Date: <strong>${formatDate(b.date)}</strong>
-            </p>
-
-            <div style="margin:16px 0;padding-bottom:16px;border-bottom:1px dashed var(--navy-light);">
-                <div style="font-size:11px;color:var(--muted);margin-bottom:4px;">
-                    BILLED TO
-                </div>
-                <strong style="font-size:15px;">
-                    ${customer?.name || 'Walk-in Customer'}
-                </strong>
-                <br>
-                <span style="font-size:12px;color:var(--muted);">
-                    ${customer?.phone || ''}
-                </span>
-                ${customer?.address ? `
-                    <br><span style="font-size:12px;color:var(--muted);">
-                        ${customer.address}
-                    </span>` : ''}
-                ${customer?.gst ? `
-                    <br><span style="font-size:11px;color:var(--muted);">
-                        GST: ${customer.gst}
-                    </span>` : ''}
+            <div>
+              <div style="font-size:22px;font-weight:700;color:#fff;letter-spacing:0.3px;">DaanaPaani Traders</div>
+              <div style="font-size:11px;color:rgba(255,255,255,0.7);letter-spacing:2px;text-transform:uppercase;margin-top:2px;">Good Food • Brighter Tomorrows</div>
             </div>
-
-            <!-- Products -->
-            <table class="ignore_export" style="width:100%;margin-bottom:16px;font-size:13px;">
-                <thead>
-                    <tr>
-                        <th style="text-align:left;padding:6px 4px;color:var(--amber);">Product</th>
-                        <th style="text-align:center;padding:6px 4px;color:var(--amber);">Qty</th>
-                        <th style="text-align:right;padding:6px 4px;color:var(--amber);">Price</th>
-                        <th style="text-align:right;padding:6px 4px;color:var(--amber);">Total</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    ${itemsHTML || `
-                        <tr>
-                            <td colspan="4" style="padding:10px 0;">
-                                No item details available.
-                            </td>
-                        </tr>
-                    `}
-                </tbody>
-            </table>
-
-            <!-- Bill Calculation -->
-            <table class="bill-totals ignore_export" style="width:100%;margin-top:8px;">
-                <tbody>
-                    <tr>
-                        <td>Subtotal</td>
-                        <td style="text-align:right;">
-                            ${formatCurrency(subtotal)}
-                        </td>
-                    </tr>
-
-                    ${discountAmount > 0 ? `
-                    <tr>
-                        <td>Discount (${discountPercent}%)</td>
-                        <td style="text-align:right;color:var(--green);">
-                            -${formatCurrency(discountAmount)}
-                        </td>
-                    </tr>` : ''}
-
-                    ${taxAmount > 0 ? `
-                    <tr>
-                        <td>Tax</td>
-                        <td style="text-align:right;">
-                            ${formatCurrency(taxAmount)}
-                        </td>
-                    </tr>` : ''}
-
-                    <tr style="border-top:1px dashed var(--navy-light);">
-                        <td style="padding-top:12px;">
-                            <strong>FINAL AMOUNT</strong>
-                        </td>
-                        <td style="text-align:right;padding-top:12px;font-size:20px;color:var(--amber);">
-                            <strong>${formatCurrency(finalAmount)}</strong>
-                        </td>
-                    </tr>
-
-                    <tr>
-                        <td>Amount Paid</td>
-                        <td style="text-align:right;color:var(--green);">
-                            ${formatCurrency(paidAmount)}
-                        </td>
-                    </tr>
-
-                    <tr>
-                        <td><strong>Balance Due</strong></td>
-                        <td style="text-align:right;color:var(--red);font-weight:bold;">
-                            ${formatCurrency(balanceAmount)}
-                        </td>
-                    </tr>
-                </tbody>
-            </table>
-
-            <!-- Payment Details -->
-            <div style="margin-top:20px;padding-top:16px;border-top:1px dashed var(--navy-light);text-align:center;font-size:12px;">
-                <div style="margin-bottom:6px;">
-                    Payment:
-                    <span class="badge ${paymentStatus === 'Paid' ? 'badge-green' :
-          paymentStatus === 'Partial' ? 'badge-yellow' :
-            'badge-red'
-        }">${paymentStatus}</span>
-
-                    &nbsp;|&nbsp;
-
-                    Mode:
-                    <span class="badge badge-blue">${b.mode || 'N/A'}</span>
-                </div>
-
-                <p style="color:var(--muted);margin-top:8px;">
-                    Thank you for your business! 🙏
-                </p>
-            </div>
-
+          </div>
+          <div style="text-align:right;">
+            <div style="background:rgba(255,255,255,0.15);border-radius:6px;padding:4px 10px;font-size:10px;font-weight:700;color:rgba(255,255,255,0.85);letter-spacing:2px;text-transform:uppercase;display:inline-block;margin-bottom:6px;">Tax Invoice</div>
+            <div style="font-size:30px;font-weight:800;color:#fff;line-height:1;">#${String(b.id).padStart(4,'0')}</div>
+            <div style="font-size:12px;color:rgba(255,255,255,0.75);margin-top:4px;">&#128197; ${formatDate(b.date)}</div>
+          </div>
         </div>
-    `;
+
+        <!-- INFO ROW: Billed To | Invoice Details | Payment Status -->
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;border-bottom:1px solid #e5e7eb;">
+
+          <!-- Billed To -->
+          <div style="padding:18px 20px;border-right:1px solid #e5e7eb;">
+            <div style="font-size:10px;font-weight:700;color:#6d28d9;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:8px;">&#128100; Billed To</div>
+            <div style="font-size:15px;font-weight:700;color:#111827;margin-bottom:4px;">${customer?.name || 'Walk-in Customer'}</div>
+            ${customer?.gst ? `<div style="font-size:12px;color:#6b7280;margin-bottom:4px;">${customer.gst}</div>` : ''}
+            ${customer?.phone ? `<div style="font-size:12px;color:#374151;margin-bottom:2px;">&#128222; ${customer.phone}</div>` : ''}
+            ${customer?.address ? `<div style="font-size:12px;color:#6b7280;">&#128205; ${customer.address}</div>` : ''}
+          </div>
+
+          <!-- Invoice Details -->
+          <div style="padding:18px 20px;border-right:1px solid #e5e7eb;">
+            <div style="font-size:10px;font-weight:700;color:#6d28d9;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:8px;">&#128203; Invoice Details</div>
+            <table style="width:100%;font-size:12px;border-collapse:collapse;" class="export_to_pdf">
+              <tr><td style="color:#6b7280;padding:3px 0;">Bill Number</td><td style="text-align:right;font-weight:600;color:#111827;">#${String(b.id).padStart(4,'0')}</td></tr>
+              <tr><td style="color:#6b7280;padding:3px 0;">Issue Date</td><td style="text-align:right;font-weight:600;color:#111827;">${formatDate(b.date)}</td></tr>
+              <tr><td style="color:#6b7280;padding:3px 0;">Payment Mode</td><td style="text-align:right;font-weight:600;color:#111827;">&#128181; ${b.mode || 'Cash'}</td></tr>
+              ${b.dueDate ? `<tr><td style="color:#6b7280;padding:3px 0;">Due Date</td><td style="text-align:right;font-weight:600;color:#dc2626;">${formatDate(b.dueDate)}</td></tr>` : ''}
+            </table>
+          </div>
+
+          <!-- Payment Status -->
+          <div style="padding:18px 20px;">
+            <div style="font-size:10px;font-weight:700;color:#6d28d9;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:8px;">&#128179; Payment Status</div>
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+              <span style="background:${statusBg};color:${statusDot};border-radius:20px;padding:4px 12px;font-size:12px;font-weight:700;display:inline-flex;align-items:center;gap:5px;"><span style="width:7px;height:7px;border-radius:50%;background:${statusDot};display:inline-block;"></span>${paymentStatus}</span>
+              <span style="font-size:11px;color:#9ca3af;">Due on Receipt</span>
+            </div>
+            <div style="font-size:10px;font-weight:700;color:#6b7280;letter-spacing:1px;text-transform:uppercase;margin-bottom:4px;">Balance Due</div>
+            <div style="font-size:22px;font-weight:800;color:#dc2626;">${formatCurrency(balanceAmount)}</div>
+          </div>
+        </div>
+
+        <!-- ORDER ITEMS -->
+        <div style="padding:20px 20px 0;">
+          <div style="font-size:12px;font-weight:700;color:#374151;letter-spacing:1px;text-transform:uppercase;margin-bottom:12px;">&#9776; Order Items</div>
+          <table style="width:100%;border-collapse:collapse;font-size:13px;"  class="export_to_pdf">
+            <thead>
+              <tr style="border-bottom:1px solid #e5e7eb;">
+                <th style="padding:8px 10px;text-align:left;font-size:11px;font-weight:600;color:#6b7280;text-transform:uppercase;letter-spacing:0.8px;width:32px;">#</th>
+                <th style="padding:8px 10px;text-align:left;font-size:11px;font-weight:600;color:#6b7280;text-transform:uppercase;letter-spacing:0.8px;">Item &amp; Description</th>
+                <th style="padding:8px 10px;text-align:center;font-size:11px;font-weight:600;color:#6b7280;text-transform:uppercase;letter-spacing:0.8px;">Qty</th>
+                <th style="padding:8px 10px;text-align:right;font-size:11px;font-weight:600;color:#6b7280;text-transform:uppercase;letter-spacing:0.8px;">Unit Price</th>
+                <th style="padding:8px 10px;text-align:right;font-size:11px;font-weight:600;color:#6b7280;text-transform:uppercase;letter-spacing:0.8px;">Amount</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${receiptItems.map((item,i) => `
+              <tr style="border-bottom:1px solid #f3f4f6;">
+                <td style="padding:12px 10px;color:#9ca3af;font-size:12px;">${i+1}</td>
+                <td style="padding:12px 10px;"><div style="font-weight:600;color:#111827;">${item.name}</div></td>
+                <td style="padding:12px 10px;text-align:center;color:#374151;">${item.qty}</td>
+                <td style="padding:12px 10px;text-align:right;color:#374151;">${formatCurrency(Number(item.unitPrice)||0)}</td>
+                <td style="padding:12px 10px;text-align:right;font-weight:600;color:#111827;">${formatCurrency(Number(item.subtotal)||0)}</td>
+              </tr>`).join('') || `<tr><td colspan="5" style="padding:20px;text-align:center;color:#9ca3af;">No items.</td></tr>`}
+            </tbody>
+          </table>
+        </div>
+
+        <!-- TERMS + TOTALS -->
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:0;padding:20px;align-items:start;">
+
+          <!-- Terms -->
+          <div style="padding-right:20px;">
+            <div style="font-size:12px;font-weight:700;color:#6d28d9;margin-bottom:8px;">&#9432; Terms &amp; Instructions:</div>
+            <ul style="margin:0;padding-left:16px;font-size:12px;color:#6b7280;line-height:1.8;">
+              <li>Goods once sold will not be taken back or exchanged.</li>
+              <li>Payment is due within 7 days of invoice date.</li>
+              <li>Thank you for choosing DaanaPaani Traders!</li>
+            </ul>
+          </div>
+
+          <!-- Totals -->
+          <div>
+            <table style="width:100%;font-size:13px;border-collapse:collapse;"  class="export_to_pdf">
+              <tr>
+                <td style="padding:5px 0;color:#374151;">Subtotal</td>
+                <td style="text-align:right;color:#111827;font-weight:500;">${formatCurrency(subtotal)}</td>
+              </tr>
+              ${discountAmount > 0 ? `<tr><td style="padding:5px 0;color:#374151;">Discount (${discountPercent}%)</td><td style="text-align:right;color:#16a34a;font-weight:500;">-${formatCurrency(discountAmount)}</td></tr>` : ''}
+              <tr>
+                <td style="padding:5px 0;color:#374151;">Estimated Tax (GST 0%) &#9432;</td>
+                <td style="text-align:right;color:#111827;font-weight:500;">${formatCurrency(taxAmount)}</td>
+              </tr>
+              <tr style="border-top:2px solid #e5e7eb;">
+                <td style="padding:10px 0 5px;font-size:15px;font-weight:700;color:#111827;">Total Amount</td>
+                <td style="text-align:right;font-size:15px;font-weight:700;color:#6d28d9;padding-top:10px;">${formatCurrency(finalAmount)}</td>
+              </tr>
+              <tr>
+                <td style="padding:5px 0;color:#374151;">Amount Paid</td>
+                <td style="text-align:right;color:#16a34a;font-weight:600;">${formatCurrency(paidAmount)}</td>
+              </tr>
+              <tr>
+                <td colspan="2" style="padding:4px 0;">
+                  <div style="display:flex;justify-content:space-between;align-items:center;border:1px solid #e5e7eb;border-radius:6px;padding:8px 12px;margin-top:4px;">
+                    <span style="font-weight:700;color:#111827;font-size:13px;">Balance Due</span>
+                    <span style="font-weight:700;color:#dc2626;font-size:14px;">${formatCurrency(balanceAmount)}</span>
+                  </div>
+                </td>
+              </tr>
+            </table>
+          </div>
+        </div>
+
+        <!-- FOOTER -->
+        <div style="border-top:1px solid #e5e7eb;padding:14px 20px;display:flex;justify-content:space-between;align-items:center;">
+          <div>
+            <div style="font-size:12px;font-weight:700;color:#111827;">DaanaPaani Traders</div>
+            <div style="font-size:11px;color:#9ca3af;margin-top:2px;">GSTIN: 07AAAAA0000A1Z5 &bull; Contact: support@daanapaani.com</div>
+          </div>
+          <div style="text-align:right;">
+            <div style="border-top:1px solid #374151;padding-top:4px;font-size:11px;color:#6b7280;width:140px;">Authorized Signatory</div>
+          </div>
+        </div>
+
+      </div>
+      `;
 
       openModal('previewModal');
     }
@@ -904,7 +848,7 @@
           <div><small style="color:var(--muted)">DATE</small><br><strong>${formatDate(latest.date)}</strong></div>
           <div><small style="color:var(--muted)">STATUS</small><br>${paymentBadge(latest.status)}</div>
         </div>
-        <table class="ignore_export" style="width:100%;margin-bottom:10px">
+        <table class="export_to_pdf" style="width:100%;margin-bottom:10px">
           <thead><tr><th>Product</th><th>Qty</th><th>Rate</th><th>Total</th></tr></thead>
           <tbody>${itemRows || '<tr><td colspan="4" style="text-align:center;color:var(--muted)">No item details available</td></tr>'}</tbody>
         </table>`;
