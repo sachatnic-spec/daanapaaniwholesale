@@ -474,7 +474,7 @@ function updateTablePagination(table) {
     const controls = document.createElement('div');
     controls.className = 'table-pagination';
     controls.innerHTML = `
-      <label>Rows per page
+      <label class="table-pagination-size">Rows
         <select aria-label="Rows per page">
           <option value="10">10</option>
           <option value="25">25</option>
@@ -483,8 +483,8 @@ function updateTablePagination(table) {
       </label>
       <span class="table-pagination-status" aria-live="polite"></span>
       <div class="table-pagination-actions">
-        <button type="button" class="btn btn-outline btn-sm" data-page-previous>Previous</button>
-        <button type="button" class="btn btn-outline btn-sm" data-page-next>Next</button>
+        <button type="button" class="table-pagination-button" data-page-previous aria-label="Previous page" title="Previous page">&larr;</button>
+        <button type="button" class="table-pagination-button" data-page-next aria-label="Next page" title="Next page">&rarr;</button>
       </div>`;
     const select = controls.querySelector('select');
     controls.querySelector('[data-page-previous]').addEventListener('click', () => {

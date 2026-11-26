@@ -658,6 +658,79 @@ ul {
 
 }
 
+.table-controls select {
+  min-height: 40px;
+  padding: 8px 34px 8px 12px;
+  border: 1px solid var(--navy-light);
+  border-radius: 6px;
+  background-color: var(--navy-mid);
+  color: var(--white);
+  font: inherit;
+}
+
+.table-controls select:focus-visible,
+.table-pagination select:focus-visible,
+.table-pagination-button:focus-visible {
+  outline: 2px solid var(--amber);
+  outline-offset: 2px;
+}
+
+.table-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  min-height: 58px;
+  padding: 10px 16px;
+  border-top: 1px solid var(--navy-light);
+  background: rgba(255, 255, 255, 0.02);
+  color: var(--muted);
+  font-size: 13px;
+  flex-wrap: wrap;
+}
+
+.table-pagination-size,
+.table-pagination-actions {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+
+.table-pagination select {
+  width: auto;
+  min-width: 64px;
+  padding: 7px 28px 7px 10px;
+  border: 1px solid var(--navy-light);
+  border-radius: 6px;
+  background-color: var(--navy);
+  color: var(--white);
+  font: inherit;
+}
+
+.table-pagination-button {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  border: 1px solid var(--navy-light);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--white);
+  font-size: 17px;
+  cursor: pointer;
+}
+
+.table-pagination-button:hover:not(:disabled) {
+  border-color: var(--amber);
+  color: var(--amber);
+}
+
+.table-pagination-button:disabled {
+  cursor: not-allowed;
+  opacity: .4;
+}
+
 
 
 table {
@@ -1742,38 +1815,6 @@ thead th {
 
     min-width: 680px;
 
-
-  .table-pagination {
-    display: flex;
-    align-items: center;
-    justify-content: flex-end;
-    gap: 12px;
-    padding: 12px 16px;
-    border-top: 1px solid var(--navy-light);
-    color: var(--muted);
-    font-size: 12px;
-    flex-wrap: wrap;
-  }
-
-  .table-pagination label,
-  .table-pagination-actions {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-  }
-
-  .table-pagination select {
-    padding: 6px 8px;
-    border: 1px solid var(--navy-light);
-    border-radius: 6px;
-    background: var(--navy);
-    color: var(--white);
-  }
-
-  .table-pagination button:disabled {
-    cursor: not-allowed;
-    opacity: .45;
-  }
   }
 
 
