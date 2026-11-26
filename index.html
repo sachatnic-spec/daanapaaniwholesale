@@ -273,6 +273,8 @@
       const totalRevenue = DB.bills
         .filter(b => b.status === 'Paid' || b.status === 'Partial')
         .reduce((sum, b) => sum + safeNumber(b.paidAmount), 0);
+      const totalExpenses = (DB.expenses || []).reduce((sum, expense) => sum + safeNumber(expense.amount), 0);
+      const netRevenue = totalRevenue - totalExpenses;
       const pendingDues = DB.bills
         .filter(b => b.status !== 'Paid')
         .reduce((sum, b) => sum + safeNumber(b.balanceAmount), 0);
@@ -280,7 +282,7 @@
       const cards = [
         { icon: '📦', label: 'Total Products', value: totalProducts, colorClass: 'amber' },
         { icon: '👥', label: 'Total Customers', value: totalCustomers, colorClass: 'blue' },
-        { icon: '💰', label: 'Total Revenue', value: formatCurrency(totalRevenue), colorClass: 'green' },
+        { icon: '💰', label: 'Net Revenue', value: formatCurrency(netRevenue), colorClass: netRevenue >= 0 ? 'green' : 'red' },
         { icon: '⏳', label: 'Pending Dues', value: formatCurrency(pendingDues), colorClass: 'red' }
       ];
 

@@ -317,6 +317,7 @@ function initTableSearch(inputId, tableBodyId) {
     Array.from(tbody.querySelectorAll('tr')).forEach(row => {
       row.style.display = row.textContent.toLowerCase().includes(query) ? '' : 'none';
     });
+    updateTablePagination(tbody.closest('table'));
   });
 }
 
@@ -348,6 +349,10 @@ function exportTableToPdf(tableWrapper, title) {
 
   const safeTitle = title || document.title || 'Table Report';
   const clonedTable = table.cloneNode(true);
+  clonedTable.querySelectorAll('tr[data-pagination-row="true"]').forEach(row => {
+    row.hidden = false;
+    row.removeAttribute('data-pagination-row');
+  });
   clonedTable.querySelectorAll('button').forEach(button => button.remove());
 
   printWindow.document.write(`<!DOCTYPE html><html><head><title>${safeTitle}</title>
@@ -411,16 +416,118 @@ function initTablePdfExports() {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-  setTimeout(initTablePdfExports, 100);
+  setTimeout(() => {
+    initTablePdfExports();
+    initTablePagination();
+  }, 100);
   if ('MutationObserver' in window) {
     let exportTimer;
     const exportObserver = new MutationObserver(() => {
       clearTimeout(exportTimer);
-      exportTimer = setTimeout(initTablePdfExports, 150);
+      exportTimer = setTimeout(() => {
+        initTablePdfExports();
+        initTablePagination();
+      }, 150);
     });
     exportObserver.observe(document.body, { childList: true, subtree: true });
   }
 });
+
+const tablePaginationStates = new WeakMap();
+
+function updateTablePagination(table) {
+  if (!table || !table.tBodies.length) return;
+
+  let state = tablePaginationStates.get(table);
+  if (!state) {
+    state = { page: 1, pageSize: 10, rows: [], controls: null };
+    tablePaginationStates.set(table, state);
+  }
+
+  const allRows = Array.from(table.tBodies).flatMap(tbody => Array.from(tbody.rows));
+  allRows.forEach(row => {
+    if (row.style.display === 'none' && row.dataset.paginationRow === 'true') {
+      row.hidden = false;
+      delete row.dataset.paginationRow;
+    }
+  });
+
+  const rows = allRows.filter(row => row.style.display !== 'none' && (!row.hidden || row.dataset.paginationRow === 'true'));
+  const rowsChanged = rows.length !== state.rows.length || rows.some((row, index) => row !== state.rows[index]);
+  if (rowsChanged) state.page = 1;
+  state.rows = rows;
+
+  if (rows.length <= state.pageSize) {
+    rows.forEach(row => {
+      row.hidden = false;
+      delete row.dataset.paginationRow;
+    });
+    state.controls?.remove();
+    state.controls = null;
+    return;
+  }
+
+  const pageCount = Math.ceil(rows.length / state.pageSize);
+  state.page = Math.min(state.page, pageCount);
+
+  if (!state.controls || !state.controls.isConnected) {
+    const controls = document.createElement('div');
+    controls.className = 'table-pagination';
+    controls.innerHTML = `
+      <label>Rows per page
+        <select aria-label="Rows per page">
+          <option value="10">10</option>
+          <option value="25">25</option>
+          <option value="50">50</option>
+        </select>
+      </label>
+      <span class="table-pagination-status" aria-live="polite"></span>
+      <div class="table-pagination-actions">
+        <button type="button" class="btn btn-outline btn-sm" data-page-previous>Previous</button>
+        <button type="button" class="btn btn-outline btn-sm" data-page-next>Next</button>
+      </div>`;
+    const select = controls.querySelector('select');
+    controls.querySelector('[data-page-previous]').addEventListener('click', () => {
+      state.page -= 1;
+      updateTablePagination(table);
+    });
+    controls.querySelector('[data-page-next]').addEventListener('click', () => {
+      state.page += 1;
+      updateTablePagination(table);
+    });
+    select.addEventListener('change', () => {
+      state.pageSize = Number(select.value);
+      state.page = 1;
+      updateTablePagination(table);
+    });
+    table.insertAdjacentElement('afterend', controls);
+    state.controls = controls;
+  }
+
+  const start = (state.page - 1) * state.pageSize;
+  const end = Math.min(start + state.pageSize, rows.length);
+  rows.forEach((row, index) => {
+    row.dataset.paginationRow = 'true';
+    row.hidden = index < start || index >= end;
+  });
+
+  state.controls.querySelector('select').value = String(state.pageSize);
+  state.controls.querySelector('.table-pagination-status').textContent = `${start + 1}-${end} of ${rows.length}`;
+  state.controls.querySelector('[data-page-previous]').disabled = state.page === 1;
+  state.controls.querySelector('[data-page-next]').disabled = state.page === pageCount;
+  state.controls.hidden = false;
+}
+
+function initTablePagination() {
+  document.querySelectorAll('table').forEach(updateTablePagination);
+}
+
+window.addEventListener('beforeprint', () => {
+  document.querySelectorAll('tr[data-pagination-row="true"]').forEach(row => { row.hidden = false; });
+  document.querySelectorAll('.table-pagination').forEach(controls => { controls.hidden = true; });
+});
+
+window.addEventListener('afterprint', initTablePagination);
 
 // ============================================================
 //  UNIVERSAL TABLE COLUMN SORTING

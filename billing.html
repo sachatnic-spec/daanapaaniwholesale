@@ -52,7 +52,7 @@
       <div class="alert" id="alertBox"></div>
 
       <!-- STATS ROW -->
-      <div class="stats-grid" style="grid-template-columns:repeat(4,1fr);margin-bottom:24px;">
+      <div class="stats-grid" style="grid-template-columns:repeat(auto-fit,minmax(170px,1fr));margin-bottom:24px;">
         <div class="stat-card">
           <div class="stat-icon amber">🧾</div>
           <div class="stat-info">
@@ -79,6 +79,13 @@
           <div class="stat-info">
             <h3 id="statAvg">₹0</h3>
             <p>Avg Bill Value</p>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon red">↘</div>
+          <div class="stat-info">
+            <h3 id="statExpenses">₹0</h3>
+            <p>Total Expenses</p>
           </div>
         </div>
       </div>
@@ -121,6 +128,52 @@
         </table>
       </div>
 
+      <div class="table-wrapper no-print" style="margin-top:24px;">
+        <div class="table-controls">
+          <h2 style="font-family:'DM Serif Display',serif;font-size:20px;color:var(--amber);">Business Expenses</h2>
+          <button class="btn btn-primary" onclick="openModal('expenseModal')">＋ Record Expense</button>
+        </div>
+        <table style="width:100%;min-width:620px;">
+          <thead>
+            <tr><th>Date</th><th>Description</th><th>Notes</th><th>Recorded By</th><th>Amount</th><th>Actions</th></tr>
+          </thead>
+          <tbody id="expenseTableBody"></tbody>
+        </table>
+      </div>
+
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="expenseModal">
+    <div class="modal" style="max-width:560px;">
+      <div class="modal-header">
+        <h3>Record Business Expense</h3>
+        <button class="modal-close" onclick="closeModal('expenseModal')">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-grid">
+          <div class="form-group" style="grid-column:1/-1;">
+            <label for="expenseDescription">What was purchased? *</label>
+            <input id="expenseDescription" type="text" maxlength="200" placeholder="e.g. Hand tools" />
+          </div>
+          <div class="form-group">
+            <label for="expenseDate">Date *</label>
+            <input id="expenseDate" type="date" />
+          </div>
+          <div class="form-group">
+            <label for="expenseAmount">Amount (₹) *</label>
+            <input id="expenseAmount" type="number" min="0.01" step="0.01" placeholder="0.00" />
+          </div>
+          <div class="form-group" style="grid-column:1/-1;">
+            <label for="expenseNotes">Notes</label>
+            <input id="expenseNotes" type="text" maxlength="500" placeholder="Optional details" />
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-outline" onclick="closeModal('expenseModal')">Cancel</button>
+        <button class="btn btn-primary" onclick="saveExpense()">Save Expense</button>
+      </div>
     </div>
   </div>
 
@@ -210,7 +263,7 @@
 
         <!-- Totals -->
         <div style="display:flex;justify-content:flex-end;">
-          <table class="bill-totals export_to_pdf" style="width:260px;">
+          <table class="bill-totals" style="width:260px;">
             <tbody>
               <tr>
                 <td>Subtotal</td>
@@ -350,6 +403,62 @@
       document.getElementById('statPaid').textContent = formatCurrency(paid);
       document.getElementById('statDues').textContent = formatCurrency(dues);
       document.getElementById('statAvg').textContent = formatCurrency(avg);
+      const expenses = (DB.expenses || []).reduce((sum, expense) => sum + safeNumber(expense.amount), 0);
+      document.getElementById('statExpenses').textContent = formatCurrency(expenses);
+    }
+
+    function escapeExpenseText(value) {
+      return String(value ?? '').replace(/[&<>"']/g, character => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+      })[character]);
+    }
+
+    function renderExpenses() {
+      const expenses = DB.expenses || [];
+      const tbody = document.getElementById('expenseTableBody');
+      tbody.innerHTML = expenses.length ? expenses.map(expense => `
+        <tr>
+          <td>${formatDate(expense.date)}</td>
+          <td><strong>${escapeExpenseText(expense.description)}</strong></td>
+          <td>${escapeExpenseText(expense.notes || '—')}</td>
+          <td>${escapeExpenseText(expense.createdByName || '—')}</td>
+          <td>${formatCurrency(expense.amount)}</td>
+          <td><button class="btn btn-danger btn-sm" onclick="deleteExpense(${Number(expense.id)})" aria-label="Delete expense">✕</button></td>
+        </tr>`).join('') : '<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:24px;">No expenses recorded.</td></tr>';
+    }
+
+    async function saveExpense() {
+      const description = document.getElementById('expenseDescription').value.trim();
+      const date = document.getElementById('expenseDate').value;
+      const amount = Number(document.getElementById('expenseAmount').value);
+      const notes = document.getElementById('expenseNotes').value.trim();
+      if (!description || !date || !Number.isFinite(amount) || amount <= 0) {
+        showAlert('Enter a description, date, and amount greater than zero.', 'error');
+        return;
+      }
+      try {
+        await apiRequest('/api/expenses', { method: 'POST', body: JSON.stringify({ description, date, amount, notes }) });
+        DB = await apiRequest('/api/db');
+        document.getElementById('expenseDescription').value = '';
+        document.getElementById('expenseAmount').value = '';
+        document.getElementById('expenseNotes').value = '';
+        document.getElementById('expenseDate').value = todayISO();
+        closeModal('expenseModal');
+        renderExpenses();
+        renderStats();
+        showAlert('Expense recorded. Net revenue has been updated.');
+      } catch (error) { showAlert(error.message, 'error'); }
+    }
+
+    async function deleteExpense(id) {
+      if (!window.confirm('Delete this expense? Net revenue will be recalculated.')) return;
+      try {
+        await apiRequest(`/api/expenses/${id}`, { method: 'DELETE' });
+        DB = await apiRequest('/api/db');
+        renderExpenses();
+        renderStats();
+        showAlert('Expense deleted.');
+      } catch (error) { showAlert(error.message, 'error'); }
     }
 
     // ---- Render bills table ----
@@ -866,6 +975,8 @@
         populateSelects();
         renderBills();
         renderStats();
+        document.getElementById('expenseDate').value = todayISO();
+        renderExpenses();
       });
     });
 

@@ -142,6 +142,15 @@ async function initDatabase() {
         ip_address VARCHAR(60),
         created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
     )`);
+    await pool.query(`CREATE TABLE IF NOT EXISTS expenses (
+        expense_id SERIAL PRIMARY KEY,
+        expense_date DATE NOT NULL,
+        description VARCHAR(200) NOT NULL,
+        amount NUMERIC(12,2) NOT NULL CHECK (amount > 0),
+        notes TEXT,
+        created_by INTEGER REFERENCES app_users(user_id),
+        created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+    )`);
     await pool.query(`ALTER TABLE bills ADD COLUMN IF NOT EXISTS created_by INTEGER REFERENCES app_users(user_id)`);
     await pool.query(`ALTER TABLE bills ADD COLUMN IF NOT EXISTS paid_by INTEGER REFERENCES app_users(user_id)`);
 
@@ -176,7 +185,7 @@ async function initDatabase() {
 
 app.get('/api/db', requireAuth, async (_req, res, next) => {
     try {
-        const [categories, products, customers, bills, inventory, customerRates, orders, orderItems, billItems] = await Promise.all([
+        const [categories, products, customers, bills, inventory, customerRates, orders, orderItems, billItems, expenses] = await Promise.all([
             pool.query('SELECT category_id id, category_name name FROM categories ORDER BY category_id'),
             pool.query('SELECT product_id id, product_name name, category_id "categoryId", unit_price "unitPrice", cost_price "costPrice", unit_type unit, stock_qty stock, reorder_level reorder FROM products ORDER BY product_id'),
             pool.query('SELECT customer_id id, customer_name name, phone, email, address, gst_number gst, credit_limit credit, repeat_order_days "repeatOrderDays", photo_data "photoData", latitude, longitude FROM customers ORDER BY customer_id'),
@@ -185,9 +194,39 @@ app.get('/api/db', requireAuth, async (_req, res, next) => {
             pool.query('SELECT customer_id "customerId", product_id "productId", custom_unit_price "customUnitPrice" FROM customer_rates'),
             pool.query(`SELECT o.order_id id,o.customer_id "customerId",o.order_date::text "orderDate",o.delivery_status "deliveryStatus",o.delivery_date::text "deliveryDate",o.notes,o.bill_id "billId",o.created_by "createdBy",u.username "createdByName",o.created_at::text "createdAt" FROM orders o LEFT JOIN app_users u ON u.user_id=o.created_by ORDER BY o.order_date DESC,o.order_id DESC`),
             pool.query('SELECT order_item_id id,order_id "orderId",product_id "productId",quantity,unit_price "unitPrice",subtotal FROM order_items ORDER BY order_item_id'),
-            pool.query('SELECT bi.item_id id, bi.bill_id "billId", bi.product_id "productId", bi.quantity, bi.unit_price "unitPrice", bi.subtotal FROM bill_items bi ORDER BY bi.item_id')
+            pool.query('SELECT bi.item_id id, bi.bill_id "billId", bi.product_id "productId", bi.quantity, bi.unit_price "unitPrice", bi.subtotal FROM bill_items bi ORDER BY bi.item_id'),
+            pool.query(`SELECT e.expense_id id,e.expense_date::text date,e.description,e.amount,e.notes,u.username "createdByName" FROM expenses e LEFT JOIN app_users u ON u.user_id=e.created_by ORDER BY e.expense_date DESC,e.expense_id DESC`)
         ]);
-        res.json({ categories: categories.rows, products: products.rows, customers: customers.rows, bills: bills.rows, inventory: inventory.rows, customerRates: customerRates.rows, orders: orders.rows, orderItems: orderItems.rows, billItems: billItems.rows, nextId: { products: 100000, customers: 100000, bills: 100000 } });
+        res.json({ categories: categories.rows, products: products.rows, customers: customers.rows, bills: bills.rows, inventory: inventory.rows, customerRates: customerRates.rows, orders: orders.rows, orderItems: orderItems.rows, billItems: billItems.rows, expenses: expenses.rows, nextId: { products: 100000, customers: 100000, bills: 100000 } });
+    } catch (error) { next(error); }
+});
+
+app.post('/api/expenses', requireAuth, async (req, res, next) => {
+    try {
+        const description = String(req.body.description || '').trim();
+        const date = String(req.body.date || '').trim();
+        const amount = Number(req.body.amount);
+        const notes = String(req.body.notes || '').trim();
+        const parsedDate = new Date(`${date}T00:00:00.000Z`);
+        const validDate = /^\d{4}-\d{2}-\d{2}$/.test(date) && !Number.isNaN(parsedDate.getTime()) && parsedDate.toISOString().slice(0, 10) === date;
+        if (!description || description.length > 200 || !validDate || !Number.isFinite(amount) || amount <= 0) {
+            return res.status(400).json({ error: 'Enter a description, valid date, and amount greater than zero.' });
+        }
+        const result = await pool.query(`INSERT INTO expenses(expense_date,description,amount,notes,created_by)
+            VALUES($1,$2,$3,$4,$5) RETURNING expense_id`, [date, description, amount, notes || null, req.user.userId]);
+        const id = result.rows[0].expense_id;
+        await addAudit(req, 'RECORD_EXPENSE', 'expense', id, `${description}; amount=${amount}; date=${date}`);
+        res.json({ id });
+    } catch (error) { next(error); }
+});
+
+app.delete('/api/expenses/:id', requireAuth, async (req, res, next) => {
+    try {
+        const result = await pool.query('DELETE FROM expenses WHERE expense_id=$1 RETURNING description,amount', [req.params.id]);
+        if (!result.rows.length) return res.status(404).json({ error: 'Expense not found.' });
+        const expense = result.rows[0];
+        await addAudit(req, 'DELETE_EXPENSE', 'expense', Number(req.params.id), `${expense.description}; amount=${expense.amount}`);
+        res.json({ ok: true });
     } catch (error) { next(error); }
 });
 

@@ -1,0 +1,993 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Billing | DaanaPaani Traders</title>
+  <link rel="stylesheet" href="css/style.css" />
+  <style>
+    /* Print styles handled in css/style.css */
+  </style>
+</head>
+
+<body>
+
+  <!-- SIDEBAR -->
+  <nav class="sidebar" id="sidebar">
+    <div class="sidebar-brand">
+      <img class="brand-logo" src="assets/daana-paani-logo.svg" alt="DaanaPaani Traders" />
+      <h2>DaanaPaani Traders</h2>
+      <small>Good Food • Brighter Tomorrows</small>
+    </div>
+    <ul class="sidebar-nav">
+      <li class="nav-label">Main</li>
+      <li><a href="index.html"><span class="nav-icon">📊</span> Dashboard</a></li>
+      <li class="nav-label">Manage</li>
+      <li><a href="products.html"><span class="nav-icon">📦</span> Products</a></li>
+      <li><a href="customers.html"><span class="nav-icon">👥</span> Customers</a></li>
+      <li><a href="inventory.html"><span class="nav-icon">🗄️</span> Inventory</a></li>
+      <li><a href="billing.html" class="active"><span class="nav-icon">🧾</span> Billing</a></li>
+      <li><a href="orders.html"><span class="nav-icon">🛒</span> Orders</a></li>
+    </ul>
+    <div class="sidebar-footer">DaanaPaani Traders &nbsp;|&nbsp; PostgreSQL</div>
+  </nav>
+
+  <div class="main-content">
+    <header class="topbar">
+      <div style="display:none;align-items:center;gap:14px;">
+        <button class="hamburger" id="hamburger">☰</button>
+        <h1>🧾 Billing System</h1>
+      </div>
+      <div class="topbar-right">
+        <span class="topbar-date" id="currentDate"></span>
+        <button class="btn btn-outline no-print" onclick="viewLatestBill()">🕘 Latest Bill</button>
+        <button class="btn btn-primary no-print" onclick="openModal('newBillModal')">
+          ＋ New Bill
+        </button>
+      </div>
+    </header>
+
+    <div class="page-wrapper">
+      <div class="alert" id="alertBox"></div>
+
+      <!-- STATS ROW -->
+      <div class="stats-grid" style="grid-template-columns:repeat(auto-fit,minmax(170px,1fr));margin-bottom:24px;">
+        <div class="stat-card">
+          <div class="stat-icon amber">🧾</div>
+          <div class="stat-info">
+            <h3 id="statTotal">0</h3>
+            <p>Total Bills</p>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon green">✅</div>
+          <div class="stat-info">
+            <h3 id="statPaid">₹0</h3>
+            <p>Paid Revenue</p>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon red">⏳</div>
+          <div class="stat-info">
+            <h3 id="statDues">₹0</h3>
+            <p>Pending Dues</p>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon blue">📊</div>
+          <div class="stat-info">
+            <h3 id="statAvg">₹0</h3>
+            <p>Avg Bill Value</p>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon red">↘</div>
+          <div class="stat-info">
+            <h3 id="statExpenses">₹0</h3>
+            <p>Total Expenses</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- ALL BILLS TABLE -->
+      <div class="table-wrapper no-print">
+        <div class="table-controls">
+          <h2 style="font-family:'DM Serif Display',serif;font-size:20px;color:var(--amber);">All Bills</h2>
+          <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center;">
+            <div class="search-wrap">
+              <input type="text" class="search-input" id="billSearch" placeholder="Search customer..." />
+            </div>
+            <select id="statusFilter"
+              style="background:var(--navy);border:1px solid var(--navy-light);color:var(--white);padding:9px 14px;border-radius:8px;font-size:13px;">
+              <option value="">All Status</option>
+              <option value="Paid">Paid</option>
+              <option value="Unpaid">Unpaid</option>
+              <option value="Partial">Partial</option>
+            </select>
+          </div>
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th>Bill #</th>
+              <th>Customer</th>
+              <th>Date</th>
+              <th>Subtotal</th>
+              <th>Discount</th>
+              <th>Final Amount</th>
+              <th>Paid</th>
+              <th>Balance</th>
+              <th>Mode</th>
+              <th>Status</th>
+              <th>Due Date</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="billTableBody"></tbody>
+        </table>
+      </div>
+
+      <div class="table-wrapper no-print" style="margin-top:24px;">
+        <div class="table-controls">
+          <h2 style="font-family:'DM Serif Display',serif;font-size:20px;color:var(--amber);">Business Expenses</h2>
+          <button class="btn btn-primary" onclick="openModal('expenseModal')">＋ Record Expense</button>
+        </div>
+        <table style="width:100%;min-width:620px;">
+          <thead>
+            <tr><th>Date</th><th>Description</th><th>Notes</th><th>Recorded By</th><th>Amount</th><th>Actions</th></tr>
+          </thead>
+          <tbody id="expenseTableBody"></tbody>
+        </table>
+      </div>
+
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="expenseModal">
+    <div class="modal" style="max-width:560px;">
+      <div class="modal-header">
+        <h3>Record Business Expense</h3>
+        <button class="modal-close" onclick="closeModal('expenseModal')">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-grid">
+          <div class="form-group" style="grid-column:1/-1;">
+            <label for="expenseDescription">What was purchased? *</label>
+            <input id="expenseDescription" type="text" maxlength="200" placeholder="e.g. Hand tools" />
+          </div>
+          <div class="form-group">
+            <label for="expenseDate">Date *</label>
+            <input id="expenseDate" type="date" />
+          </div>
+          <div class="form-group">
+            <label for="expenseAmount">Amount (₹) *</label>
+            <input id="expenseAmount" type="number" min="0.01" step="0.01" placeholder="0.00" />
+          </div>
+          <div class="form-group" style="grid-column:1/-1;">
+            <label for="expenseNotes">Notes</label>
+            <input id="expenseNotes" type="text" maxlength="500" placeholder="Optional details" />
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-outline" onclick="closeModal('expenseModal')">Cancel</button>
+        <button class="btn btn-primary" onclick="saveExpense()">Save Expense</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================================
+     NEW BILL MODAL
+     ============================================================ -->
+  <div class="modal-overlay" id="newBillModal">
+    <div class="modal" style="max-width:800px;">
+      <div class="modal-header">
+        <h3>Create New Bill</h3>
+        <button class="modal-close" onclick="closeModal('newBillModal')">✕</button>
+      </div>
+      <div class="modal-body">
+        <!-- STEP 1: Bill Header -->
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-bottom:20px;">
+          <div class="form-group">
+            <label>Customer *</label>
+            <select id="bCustomer" onchange="updateProductPrice()"></select>
+          </div>
+          <div class="form-group">
+            <label>Bill Date *</label>
+            <input type="date" id="bDate" />
+          </div>
+          <div class="form-group">
+            <label>Payment Mode</label>
+            <select id="bMode">
+              <option value="Cash">Cash</option>
+              <option value="Credit">Credit</option>
+              <option value="Online">Online</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Discount (%)</label>
+            <input type="number" id="bDiscount" value="0" min="0" max="50" step="0.5" oninput="recalculate()" />
+          </div>
+          <div class="form-group">
+            <label>Payment Status</label>
+            <input type="text" id="bStatusPreview" value="Unpaid" readonly />
+          </div>
+          <div class="form-group">
+            <label>Collection Due Date</label>
+            <input type="date" id="bDueDate" />
+          </div>
+        </div>
+
+        <!-- STEP 2: Add Items -->
+        <div
+          style="background:var(--navy);border:1px solid var(--navy-light);border-radius:8px;padding:16px;margin-bottom:16px;">
+          <h4 style="color:var(--amber);margin-bottom:12px;">Add Products to Bill</h4>
+          <div style="display:grid;grid-template-columns:2fr 1fr 1fr auto;gap:12px;align-items:end;">
+            <div class="form-group" style="margin:0;">
+              <label>Select Product</label>
+              <select id="addProduct" onchange="updateProductPrice()"></select>
+            </div>
+            <div class="form-group" style="margin:0;">
+              <label>Quantity</label>
+              <input type="number" id="addQty" value="1" min="1" />
+            </div>
+            <div class="form-group" style="margin:0;">
+              <label>Customer Rate (₹)</label>
+              <div style="display:flex;gap:6px;">
+                <input type="number" id="addCustomRate" min="0" step="0.01" />
+              </div>
+            </div>
+            <button class="btn btn-primary" onclick="addItemToCart()" style="height:42px;align-self:end;">Add ➕</button>
+          </div>
+          <div style="margin-top:10px;font-size:13px;color:var(--muted);">
+            Price: <span id="selectedPrice" style="color:var(--amber);">—</span>
+          </div>
+        </div>
+
+        <!-- Cart / Line Items Table -->
+        <div id="cartSection" style="display:none;">
+          <table style="margin-bottom:16px;" >
+            <thead>
+              <tr>
+                <th>Product</th>
+                <th>Qty</th>
+                <th>Unit Price</th>
+                <th>Subtotal</th>
+                <th>Remove</th>
+              </tr>
+            </thead>
+            <tbody id="cartBody"></tbody>
+          </table>
+        </div>
+
+        <!-- Totals -->
+        <div style="display:flex;justify-content:flex-end;">
+          <table class="bill-totals export_to_pdf" style="width:260px;">
+            <tbody>
+              <tr>
+                <td>Subtotal</td>
+                <td style="text-align:right;" id="tSubtotal">₹0.00</td>
+              </tr>
+              <tr>
+                <td>Discount</td>
+                <td style="text-align:right;color:var(--green);" id="tDiscount">-₹0.00</td>
+              </tr>
+              <tr class="grand-total">
+                <td><strong>Total</strong></td>
+                <td style="text-align:right;"><strong id="tTotal">₹0.00</strong></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-outline" onclick="closeModal('newBillModal')">Cancel</button>
+        <button class="btn btn-primary" onclick="saveBill()">🧾 Generate Bill</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- BILL PREVIEW / PRINT MODAL -->
+  <div class="modal-overlay" id="previewModal">
+    <div class="modal" style="max-width:600px;">
+      <div class="modal-header">
+        <h3>Bill Preview</h3>
+        <button class="modal-close" onclick="closeModal('previewModal')">✕</button>
+      </div>
+      <div class="modal-body" id="receiptContent"></div>
+      <div class="modal-footer">
+        <button class="btn btn-outline" onclick="closeModal('previewModal')">Close</button>
+        <button class="btn btn-primary no-print" onclick="printBill()">🖨️ Print</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- PAYMENT MODAL -->
+  <div class="modal-overlay" id="paymentModal">
+    <div class="modal" style="max-width:460px;">
+      <div class="modal-header">
+        <h3>Record Bill Payment</h3>
+        <button class="modal-close" onclick="closeModal('paymentModal')">✕</button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="paymentBillId" />
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px;">
+          <div style="padding:12px;background:var(--navy);border:1px solid var(--navy-light);border-radius:8px;">
+            <small style="color:var(--muted);">Bill Total</small>
+            <div id="paymentBillTotal" style="font-weight:600;font-size:18px;">₹0.00</div>
+          </div>
+          <div style="padding:12px;background:var(--navy);border:1px solid var(--navy-light);border-radius:8px;">
+            <small style="color:var(--muted);">Already Paid</small>
+            <div id="paymentAlreadyPaid" style="font-weight:600;font-size:18px;color:var(--green);">₹0.00</div>
+          </div>
+        </div>
+        <div
+          style="padding:12px;margin-bottom:16px;border:1px solid rgba(231,76,60,.35);background:rgba(231,76,60,.08);border-radius:8px;">
+          <small style="color:var(--muted);">Pending Amount</small>
+          <div id="paymentPending" style="font-weight:700;font-size:22px;color:var(--red);">₹0.00</div>
+        </div>
+        <div class="form-grid">
+          <div class="form-group">
+            <label>Paid Amount *</label>
+            <input type="number" id="paymentAmount" min="0.01" step="0.01" oninput="updatePaymentPreview()" />
+          </div>
+          <div class="form-group">
+            <label>Payment Mode</label>
+            <select id="paymentMode">
+              <option value="Cash">Cash</option>
+              <option value="Online">Online</option>
+              <option value="Credit">Credit</option>
+            </select>
+          </div>
+          <div class="form-group" id="paymentDueDateGroup" style="grid-column:1/-1">
+            <label>Collection Due Date</label>
+            <input type="date" id="paymentDueDate" />
+          </div>
+        </div>
+        <div id="paymentPreview" style="margin-top:12px;color:var(--muted);">After payment: ₹0.00 will remain pending.
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-outline" onclick="closeModal('paymentModal')">Cancel</button>
+        <button class="btn btn-primary" onclick="submitPayment()">Submit Payment</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- LATEST BILL SUMMARY MODAL -->
+  <div class="modal-overlay" id="latestBillModal">
+    <div class="modal" style="max-width:700px;">
+      <div class="modal-header">
+        <h3>Latest Bill Summary</h3>
+        <button class="modal-close" onclick="closeModal('latestBillModal')">✕</button>
+      </div>
+      <div class="modal-body" id="latestBillContent"></div>
+      <div class="modal-footer">
+        <button class="btn btn-outline" onclick="closeModal('latestBillModal')">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- PRINT AREA (only visible during print) -->
+  <div id="printArea" style="display:none;"></div>
+
+  <!-- INVOICE MODAL -->
+  <div class="modal-overlay" id="invoiceModal" style="z-index:1100;">
+    <div class="modal" style="max-width:900px;width:95vw;height:90vh;display:flex;flex-direction:column;padding:0;">
+      <div class="modal-header" style="padding:14px 20px;flex-shrink:0;">
+        <h3>Invoice Preview</h3>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <button class="btn btn-outline btn-sm" onclick="document.getElementById('invoiceFrame').contentWindow.print()">🖨️ Print</button>
+          <button class="modal-close" onclick="closeModal('invoiceModal')">✕</button>
+        </div>
+      </div>
+      <iframe id="invoiceFrame" src="" style="flex:1;border:none;width:100%;border-radius:0 0 12px 12px;"></iframe>
+    </div>
+  </div>
+
+  <script src="js/app.js"></script>
+  <script>
+    /* ── Billing Page Logic ── */
+
+    let cartItems = [];  // Holds current bill's line items
+
+    // ---- Render billing stats ----
+    function renderStats() {
+      const total = DB.bills.length;
+      const paid = DB.bills.reduce((s, b) => s + safeNumber(b.paidAmount), 0);
+      const dues = DB.bills.reduce((s, b) => s + safeNumber(b.balanceAmount), 0);
+      const avg = total > 0 ? DB.bills.reduce((s, b) => s + safeNumber(b.final), 0) / total : 0;
+
+      document.getElementById('statTotal').textContent = total;
+      document.getElementById('statPaid').textContent = formatCurrency(paid);
+      document.getElementById('statDues').textContent = formatCurrency(dues);
+      document.getElementById('statAvg').textContent = formatCurrency(avg);
+      const expenses = (DB.expenses || []).reduce((sum, expense) => sum + safeNumber(expense.amount), 0);
+      document.getElementById('statExpenses').textContent = formatCurrency(expenses);
+    }
+
+    function escapeExpenseText(value) {
+      return String(value ?? '').replace(/[&<>"']/g, character => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+      })[character]);
+    }
+
+    function renderExpenses() {
+      const expenses = DB.expenses || [];
+      const tbody = document.getElementById('expenseTableBody');
+      tbody.innerHTML = expenses.length ? expenses.map(expense => `
+        <tr>
+          <td>${formatDate(expense.date)}</td>
+          <td><strong>${escapeExpenseText(expense.description)}</strong></td>
+          <td>${escapeExpenseText(expense.notes || '—')}</td>
+          <td>${escapeExpenseText(expense.createdByName || '—')}</td>
+          <td>${formatCurrency(expense.amount)}</td>
+          <td><button class="btn btn-danger btn-sm" onclick="deleteExpense(${Number(expense.id)})" aria-label="Delete expense">✕</button></td>
+        </tr>`).join('') : '<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:24px;">No expenses recorded.</td></tr>';
+    }
+
+    async function saveExpense() {
+      const description = document.getElementById('expenseDescription').value.trim();
+      const date = document.getElementById('expenseDate').value;
+      const amount = Number(document.getElementById('expenseAmount').value);
+      const notes = document.getElementById('expenseNotes').value.trim();
+      if (!description || !date || !Number.isFinite(amount) || amount <= 0) {
+        showAlert('Enter a description, date, and amount greater than zero.', 'error');
+        return;
+      }
+      try {
+        await apiRequest('/api/expenses', { method: 'POST', body: JSON.stringify({ description, date, amount, notes }) });
+        DB = await apiRequest('/api/db');
+        document.getElementById('expenseDescription').value = '';
+        document.getElementById('expenseAmount').value = '';
+        document.getElementById('expenseNotes').value = '';
+        document.getElementById('expenseDate').value = todayISO();
+        closeModal('expenseModal');
+        renderExpenses();
+        renderStats();
+        showAlert('Expense recorded. Net revenue has been updated.');
+      } catch (error) { showAlert(error.message, 'error'); }
+    }
+
+    async function deleteExpense(id) {
+      if (!window.confirm('Delete this expense? Net revenue will be recalculated.')) return;
+      try {
+        await apiRequest(`/api/expenses/${id}`, { method: 'DELETE' });
+        DB = await apiRequest('/api/db');
+        renderExpenses();
+        renderStats();
+        showAlert('Expense deleted.');
+      } catch (error) { showAlert(error.message, 'error'); }
+    }
+
+    // ---- Render bills table ----
+    function renderBills(filterText = '', filterStatus = '') {
+      let bills = [...DB.bills].sort((a, b) => new Date(b.date) - new Date(a.date));
+
+      if (filterStatus) bills = bills.filter(b => b.status === filterStatus);
+      if (filterText) {
+        bills = bills.filter(b =>
+          getCustomerName(b.customerId).toLowerCase().includes(filterText.toLowerCase())
+        );
+      }
+
+      const tbody = document.getElementById('billTableBody');
+      if (!bills.length) {
+        tbody.innerHTML = '<tr><td colspan="10" style="text-align:center;color:var(--muted);padding:28px;">No bills found.</td></tr>';
+        return;
+      }
+
+      tbody.innerHTML = bills.map(b => {
+        const discAmt = b.total * (b.discount / 100);
+        const afterDisc = b.total - discAmt;
+        const dueToday = b.dueDate && b.status !== 'Paid' && b.dueDate === todayISO();
+        return `
+    <tr ${dueToday ? 'style="background:rgba(231,76,60,.12);border-left:4px solid var(--red);"' : ''}>
+      <td class="table-id">#${String(b.id).padStart(4, '0')}</td>
+      <td><strong>${getCustomerName(b.customerId)}</strong></td>
+      <td>${formatDate(b.date)}</td>
+      <td>${formatCurrency(b.total)}</td>
+      <td style="color:var(--green);">${b.discount > 0 ? '-' + formatCurrency(discAmt) : '—'}</td>
+      <td style="font-weight:600;">${formatCurrency(b.final)}</td>
+      <td>${formatCurrency(b.paidAmount)}</td>
+      <td>${formatCurrency(b.balanceAmount ?? b.final - (b.paidAmount || 0))}</td>
+      <td>${b.mode}</td>
+      <td>${b.status}</td>
+      <td>${b.dueDate ? formatDate(b.dueDate) : '—'}</td>
+      <td style="display:flex;gap:6px;">
+        <button class="btn btn-outline btn-sm" onclick="viewBill(${b.id})">👁️ View</button>
+        ${b.status !== 'Paid'
+            ? `<button class="btn btn-edit btn-sm" onclick="markPaid(${b.id})">✅ Mark Paid</button>`
+            : ''}
+      </td>
+    </tr>`;
+      }).join('');
+    }
+
+    // ---- Populate customer and product selects ----
+    function populateSelects() {
+      const custSel = document.getElementById('bCustomer');
+      custSel.innerHTML = DB.customers.map(c =>
+        `<option value="${c.id}">${c.name}</option>`
+      ).join('');
+
+      const prodSel = document.getElementById('addProduct');
+      prodSel.innerHTML = DB.products.map(p =>
+        `<option value="${p.id}" data-price="${p.unitPrice}">${p.name} (${formatCurrency(p.unitPrice)})</option>`
+      ).join('');
+
+      document.getElementById('bDate').value = todayISO();
+      updateProductPrice();
+    }
+
+    function updateProductPrice() {
+      const sel = document.getElementById('addProduct');
+      const selected = sel.options[sel.selectedIndex];
+      const productId = selected ? parseInt(selected.value, 10) : 0;
+      const customerId = parseInt(document.getElementById('bCustomer').value, 10);
+      const customRate = (DB.customerRates || []).find(r => r.customerId === customerId && r.productId === productId);
+      const price = customRate ? safeNumber(customRate.customUnitPrice) : (selected ? safeNumber(selected.dataset.price) : 0);
+      document.getElementById('selectedPrice').textContent = formatCurrency(price) + ' per unit';
+      const rateInput = document.getElementById('addCustomRate');
+      if (rateInput) rateInput.value = price.toFixed(2);
+    }
+
+    function updateCustomRatePreview() {
+      const amount = Number(document.getElementById('addCustomRate').value);
+      document.getElementById('selectedPrice').textContent = formatCurrency(Number.isFinite(amount) ? amount : 0) + ' per unit';
+    }
+
+    // ---- Add item to cart ----
+    function addItemToCart() {
+      const productId = parseInt(document.getElementById('addProduct').value);
+      const qty = parseInt(document.getElementById('addQty').value) || 1;
+      const unitRate = parseFloat(document.getElementById('addCustomRate').value);
+      const product = DB.products.find(p => p.id === productId);
+      if (!product) return;
+
+      const customerId = parseInt(document.getElementById('bCustomer').value, 10);
+      const fallbackRate = safeNumber(product.unitPrice);
+      const unitPrice = Number.isFinite(unitRate) && unitRate >= 0 ? unitRate : fallbackRate;
+
+      // Check if already in cart
+      const existing = cartItems.find(i => i.productId === productId);
+      if (existing) {
+        existing.qty += qty;
+        existing.subtotal = existing.qty * existing.unitPrice;
+      } else {
+        cartItems.push({
+          productId,
+          name: product.name,
+          qty,
+          unitPrice,
+          subtotal: qty * unitPrice
+        });
+      }
+
+      renderCart();
+      recalculate();
+    }
+
+    // ---- Render cart table ----
+    function renderCart() {
+      const section = document.getElementById('cartSection');
+      const tbody = document.getElementById('cartBody');
+
+      if (cartItems.length === 0) {
+        section.style.display = 'none';
+        return;
+      }
+
+      section.style.display = 'block';
+      tbody.innerHTML = cartItems.map((item, idx) => `
+    <tr>
+      <td>${item.name}</td>
+      <td>${item.qty} <span style="color:var(--muted);font-size:12px;">units</span></td>
+      <td>${formatCurrency(item.unitPrice)}</td>
+      <td><strong>${formatCurrency(item.subtotal)}</strong></td>
+      <td>
+        <button class="btn btn-danger btn-sm" onclick="removeCartItem(${idx})">✕</button>
+      </td>
+    </tr>
+  `).join('');
+    }
+
+    function removeCartItem(idx) {
+      cartItems.splice(idx, 1);
+      renderCart();
+      recalculate();
+    }
+
+    // ---- Recalculate totals in the form ----
+    function recalculate() {
+      const discountPct = parseFloat(document.getElementById('bDiscount').value) || 0;
+      const totals = calculateBillTotals(cartItems, discountPct);
+
+      document.getElementById('tSubtotal').textContent = formatCurrency(totals.subtotal);
+      document.getElementById('tDiscount').textContent = '-' + formatCurrency(totals.discountAmt);
+      document.getElementById('tTotal').textContent = formatCurrency(totals.finalAmt);
+    }
+
+    // ---- Save bill ----
+    function saveBill() {
+      const customerId = parseInt(document.getElementById('bCustomer').value);
+      const date = document.getElementById('bDate').value;
+      const mode = document.getElementById('bMode').value;
+      const dueDate = document.getElementById('bDueDate').value || null;
+      const discountPct = parseFloat(document.getElementById('bDiscount').value) || 0;
+      const status = 'Unpaid';
+
+      if (!customerId || !date) { showAlert('Please fill all required fields.', 'error'); return; }
+      if (cartItems.length === 0) { showAlert('Add at least one product to the bill.', 'error'); return; }
+
+      const totals = calculateBillTotals(cartItems, discountPct);
+
+      // SQL: INSERT INTO bills (...) VALUES (...)
+      const newBill = {
+        id: DB.nextId.bills++,
+        customerId,
+        date,
+        dueDate,
+        total: totals.subtotal,
+        discount: discountPct,
+        final: totals.finalAmt,
+        status,
+        mode,
+        items: [...cartItems]
+      };
+
+      apiRequest('/api/bills', { method: 'POST', body: JSON.stringify(newBill) })
+        .then(result => apiRequest('/api/db').then(data => ({ data, billId: result.id })))
+        .then(({ data, billId }) => {
+          DB = data;
+          cartItems = [];
+          renderCart();
+          recalculate();
+          closeModal('newBillModal');
+          showAlert('Bill created successfully!');
+          renderBills();
+          renderStats();
+          viewBill(billId);
+        })
+        .catch(error => showAlert(error.message, 'error'));
+    }
+
+
+    function viewBill(id) {
+      document.getElementById('invoiceFrame').src = 'invoice.html?id=' + id;
+      openModal('invoiceModal');
+    }
+
+    function viewBill_old(id) {
+      const b = DB.bills.find(b => b.id === id);
+      if (!b) return;
+
+      const customer = DB.customers.find(c => c.id === b.customerId);
+
+      // Convert database decimal strings into numbers
+      const subtotal = Number(b.total) || 0;
+      const discountPercent = Number(b.discount) || 0;
+      const taxAmount = Number(b.tax) || 0;
+      const paidAmount = Number(b.paidAmount) || 0;
+
+      // Financial calculations
+      const discountAmount = subtotal * (discountPercent / 100);
+      const discountedAmount = subtotal - discountAmount;
+      const finalAmount = discountedAmount + taxAmount;
+      const balanceAmount = Math.max(0, finalAmount - paidAmount);
+
+      // Bill items
+      const billItems = (DB.billItems || []).filter(
+        item => item.billId === b.id
+      );
+
+      const receiptItems = billItems.length
+        ? billItems.map(item => {
+          const product = DB.products.find(
+            p => p.id === item.productId
+          );
+
+          return {
+            name: product?.name || 'Product',
+            qty: Number(item.quantity) || 0,
+            unitPrice: Number(item.unitPrice) || 0,
+            subtotal: Number(item.subtotal) || 0
+          };
+        })
+        : (b.items || []);
+
+      const paymentStatus = balanceAmount <= 0 ? 'Paid' : paidAmount > 0 ? 'Partial' : 'Unpaid';
+      const statusDot = paymentStatus === 'Paid' ? '#16a34a' : paymentStatus === 'Partial' ? '#d97706' : '#f59e0b';
+      const statusBg  = paymentStatus === 'Paid' ? '#dcfce7' : paymentStatus === 'Partial' ? '#fef3c7' : '#fef9c3';
+
+      document.getElementById('receiptContent').innerHTML = `
+      <div style="font-family:'Segoe UI',Arial,sans-serif;color:#1e1b2e;background:#fff;border:1px solid #e5e7eb;border-radius:12px;overflow:hidden;max-width:720px;margin:0 auto;">
+
+        <!-- HEADER -->
+        <div style="background:linear-gradient(135deg,#6d28d9,#4c1d95);padding:24px 28px;display:flex;align-items:center;justify-content:space-between;">
+          <div style="display:flex;align-items:center;gap:14px;">
+            <div style="background:rgba(255,255,255,0.15);border-radius:10px;padding:10px;width:52px;height:52px;display:flex;align-items:center;justify-content:center;">
+              <img src="assets/daana-paani-logo.svg" style="width:36px;height:36px;object-fit:contain;filter:brightness(0) invert(1);">
+            </div>
+            <div>
+              <div style="font-size:22px;font-weight:700;color:#fff;letter-spacing:0.3px;">DaanaPaani Traders</div>
+              <div style="font-size:11px;color:rgba(255,255,255,0.7);letter-spacing:2px;text-transform:uppercase;margin-top:2px;">Good Food • Brighter Tomorrows</div>
+            </div>
+          </div>
+          <div style="text-align:right;">
+            <div style="background:rgba(255,255,255,0.15);border-radius:6px;padding:4px 10px;font-size:10px;font-weight:700;color:rgba(255,255,255,0.85);letter-spacing:2px;text-transform:uppercase;display:inline-block;margin-bottom:6px;">Tax Invoice</div>
+            <div style="font-size:30px;font-weight:800;color:#fff;line-height:1;">#${String(b.id).padStart(4,'0')}</div>
+            <div style="font-size:12px;color:rgba(255,255,255,0.75);margin-top:4px;">&#128197; ${formatDate(b.date)}</div>
+          </div>
+        </div>
+
+        <!-- INFO ROW: Billed To | Invoice Details | Payment Status -->
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;border-bottom:1px solid #e5e7eb;">
+
+          <!-- Billed To -->
+          <div style="padding:18px 20px;border-right:1px solid #e5e7eb;">
+            <div style="font-size:10px;font-weight:700;color:#6d28d9;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:8px;">&#128100; Billed To</div>
+            <div style="font-size:15px;font-weight:700;color:#111827;margin-bottom:4px;">${customer?.name || 'Walk-in Customer'}</div>
+            ${customer?.gst ? `<div style="font-size:12px;color:#6b7280;margin-bottom:4px;">${customer.gst}</div>` : ''}
+            ${customer?.phone ? `<div style="font-size:12px;color:#374151;margin-bottom:2px;">&#128222; ${customer.phone}</div>` : ''}
+            ${customer?.address ? `<div style="font-size:12px;color:#6b7280;">&#128205; ${customer.address}</div>` : ''}
+          </div>
+
+          <!-- Invoice Details -->
+          <div style="padding:18px 20px;border-right:1px solid #e5e7eb;">
+            <div style="font-size:10px;font-weight:700;color:#6d28d9;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:8px;">&#128203; Invoice Details</div>
+            <table style="width:100%;font-size:12px;border-collapse:collapse;" class="export_to_pdf">
+              <tr><td style="color:#6b7280;padding:3px 0;">Bill Number</td><td style="text-align:right;font-weight:600;color:#111827;">#${String(b.id).padStart(4,'0')}</td></tr>
+              <tr><td style="color:#6b7280;padding:3px 0;">Issue Date</td><td style="text-align:right;font-weight:600;color:#111827;">${formatDate(b.date)}</td></tr>
+              <tr><td style="color:#6b7280;padding:3px 0;">Payment Mode</td><td style="text-align:right;font-weight:600;color:#111827;">&#128181; ${b.mode || 'Cash'}</td></tr>
+              ${b.dueDate ? `<tr><td style="color:#6b7280;padding:3px 0;">Due Date</td><td style="text-align:right;font-weight:600;color:#dc2626;">${formatDate(b.dueDate)}</td></tr>` : ''}
+            </table>
+          </div>
+
+          <!-- Payment Status -->
+          <div style="padding:18px 20px;">
+            <div style="font-size:10px;font-weight:700;color:#6d28d9;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:8px;">&#128179; Payment Status</div>
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+              <span style="background:${statusBg};color:${statusDot};border-radius:20px;padding:4px 12px;font-size:12px;font-weight:700;display:inline-flex;align-items:center;gap:5px;"><span style="width:7px;height:7px;border-radius:50%;background:${statusDot};display:inline-block;"></span>${paymentStatus}</span>
+              <span style="font-size:11px;color:#9ca3af;">Due on Receipt</span>
+            </div>
+            <div style="font-size:10px;font-weight:700;color:#6b7280;letter-spacing:1px;text-transform:uppercase;margin-bottom:4px;">Balance Due</div>
+            <div style="font-size:22px;font-weight:800;color:#dc2626;">${formatCurrency(balanceAmount)}</div>
+          </div>
+        </div>
+
+        <!-- ORDER ITEMS -->
+        <div style="padding:20px 20px 0;">
+          <div style="font-size:12px;font-weight:700;color:#374151;letter-spacing:1px;text-transform:uppercase;margin-bottom:12px;">&#9776; Order Items</div>
+          <table style="width:100%;border-collapse:collapse;font-size:13px;"  class="export_to_pdf">
+            <thead>
+              <tr style="border-bottom:1px solid #e5e7eb;">
+                <th style="padding:8px 10px;text-align:left;font-size:11px;font-weight:600;color:#6b7280;text-transform:uppercase;letter-spacing:0.8px;width:32px;">#</th>
+                <th style="padding:8px 10px;text-align:left;font-size:11px;font-weight:600;color:#6b7280;text-transform:uppercase;letter-spacing:0.8px;">Item &amp; Description</th>
+                <th style="padding:8px 10px;text-align:center;font-size:11px;font-weight:600;color:#6b7280;text-transform:uppercase;letter-spacing:0.8px;">Qty</th>
+                <th style="padding:8px 10px;text-align:right;font-size:11px;font-weight:600;color:#6b7280;text-transform:uppercase;letter-spacing:0.8px;">Unit Price</th>
+                <th style="padding:8px 10px;text-align:right;font-size:11px;font-weight:600;color:#6b7280;text-transform:uppercase;letter-spacing:0.8px;">Amount</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${receiptItems.map((item,i) => `
+              <tr style="border-bottom:1px solid #f3f4f6;">
+                <td style="padding:12px 10px;color:#9ca3af;font-size:12px;">${i+1}</td>
+                <td style="padding:12px 10px;"><div style="font-weight:600;color:#111827;">${item.name}</div></td>
+                <td style="padding:12px 10px;text-align:center;color:#374151;">${item.qty}</td>
+                <td style="padding:12px 10px;text-align:right;color:#374151;">${formatCurrency(Number(item.unitPrice)||0)}</td>
+                <td style="padding:12px 10px;text-align:right;font-weight:600;color:#111827;">${formatCurrency(Number(item.subtotal)||0)}</td>
+              </tr>`).join('') || `<tr><td colspan="5" style="padding:20px;text-align:center;color:#9ca3af;">No items.</td></tr>`}
+            </tbody>
+          </table>
+        </div>
+
+        <!-- TERMS + TOTALS -->
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:0;padding:20px;align-items:start;">
+
+          <!-- Terms -->
+          <div style="padding-right:20px;">
+            <div style="font-size:12px;font-weight:700;color:#6d28d9;margin-bottom:8px;">&#9432; Terms &amp; Instructions:</div>
+            <ul style="margin:0;padding-left:16px;font-size:12px;color:#6b7280;line-height:1.8;">
+              <li>Goods once sold will not be taken back or exchanged.</li>
+              <li>Payment is due within 7 days of invoice date.</li>
+              <li>Thank you for choosing DaanaPaani Traders!</li>
+            </ul>
+          </div>
+
+          <!-- Totals -->
+          <div>
+            <table style="width:100%;font-size:13px;border-collapse:collapse;"  class="export_to_pdf">
+              <tr>
+                <td style="padding:5px 0;color:#374151;">Subtotal</td>
+                <td style="text-align:right;color:#111827;font-weight:500;">${formatCurrency(subtotal)}</td>
+              </tr>
+              ${discountAmount > 0 ? `<tr><td style="padding:5px 0;color:#374151;">Discount (${discountPercent}%)</td><td style="text-align:right;color:#16a34a;font-weight:500;">-${formatCurrency(discountAmount)}</td></tr>` : ''}
+              <tr>
+                <td style="padding:5px 0;color:#374151;">Estimated Tax (GST 0%) &#9432;</td>
+                <td style="text-align:right;color:#111827;font-weight:500;">${formatCurrency(taxAmount)}</td>
+              </tr>
+              <tr style="border-top:2px solid #e5e7eb;">
+                <td style="padding:10px 0 5px;font-size:15px;font-weight:700;color:#111827;">Total Amount</td>
+                <td style="text-align:right;font-size:15px;font-weight:700;color:#6d28d9;padding-top:10px;">${formatCurrency(finalAmount)}</td>
+              </tr>
+              <tr>
+                <td style="padding:5px 0;color:#374151;">Amount Paid</td>
+                <td style="text-align:right;color:#16a34a;font-weight:600;">${formatCurrency(paidAmount)}</td>
+              </tr>
+              <tr>
+                <td colspan="2" style="padding:4px 0;">
+                  <div style="display:flex;justify-content:space-between;align-items:center;border:1px solid #e5e7eb;border-radius:6px;padding:8px 12px;margin-top:4px;">
+                    <span style="font-weight:700;color:#111827;font-size:13px;">Balance Due</span>
+                    <span style="font-weight:700;color:#dc2626;font-size:14px;">${formatCurrency(balanceAmount)}</span>
+                  </div>
+                </td>
+              </tr>
+            </table>
+          </div>
+        </div>
+
+        <!-- FOOTER -->
+        <div style="border-top:1px solid #e5e7eb;padding:14px 20px;display:flex;justify-content:space-between;align-items:center;">
+          <div>
+            <div style="font-size:12px;font-weight:700;color:#111827;">DaanaPaani Traders</div>
+            <div style="font-size:11px;color:#9ca3af;margin-top:2px;">GSTIN: 07AAAAA0000A1Z5 &bull; Contact: support@daanapaani.com</div>
+          </div>
+          <div style="text-align:right;">
+            <div style="border-top:1px solid #374151;padding-top:4px;font-size:11px;color:#6b7280;width:140px;">Authorized Signatory</div>
+          </div>
+        </div>
+
+      </div>
+      `;
+
+      openModal('previewModal');
+    }
+
+    // ---- Mark bill as paid or partially paid ----
+    function markPaid(id) {
+      const bill = DB.bills.find(b => b.id === id);
+      if (!bill) return;
+
+      const final = Number(bill.final) || 0;
+      const paid = Number(bill.paidAmount) || 0;
+      const pending = Math.max(final - paid, 0);
+
+      document.getElementById('paymentBillId').value = id;
+      document.getElementById('paymentBillTotal').textContent = formatCurrency(final);
+      document.getElementById('paymentAlreadyPaid').textContent = formatCurrency(paid);
+      document.getElementById('paymentPending').textContent = formatCurrency(pending);
+      document.getElementById('paymentAmount').value = '';
+      document.getElementById('paymentAmount').max = pending.toFixed(2);
+      document.getElementById('paymentMode').value = bill.mode || 'Cash';
+      document.getElementById('paymentDueDate').value = bill.dueDate || '';
+      document.getElementById('paymentDueDateGroup').style.display = 'block';
+      document.getElementById('paymentPreview').textContent = 'Enter an amount to calculate the remaining pending balance.';
+      openModal('paymentModal');
+    }
+
+    function updatePaymentPreview() {
+      const id = Number(document.getElementById('paymentBillId').value);
+      const bill = DB.bills.find(b => b.id === id);
+      if (!bill) return;
+
+      const final = Number(bill.final) || 0;
+      const paid = Number(bill.paidAmount) || 0;
+      const amount = Number(document.getElementById('paymentAmount').value);
+      const validAmount = Number.isFinite(amount) ? Math.max(amount, 0) : 0;
+      const remaining = Math.max(final - paid - validAmount, 0);
+      document.getElementById('paymentDueDateGroup').style.display = remaining > 0 ? 'block' : 'none';
+      document.getElementById('paymentPreview').innerHTML = `After payment: <strong style="color:${remaining === 0 ? 'var(--green)' : 'var(--red)'}">${formatCurrency(remaining)}</strong> will remain pending.`;
+    }
+
+    function submitPayment() {
+      const id = Number(document.getElementById('paymentBillId').value);
+      const bill = DB.bills.find(b => b.id === id);
+      if (!bill) { showAlert('Bill not found.', 'error'); return; }
+
+      const final = Number(bill.final) || 0;
+      const paid = Number(bill.paidAmount) || 0;
+      const pending = Math.max(final - paid, 0);
+      const amount = Number(document.getElementById('paymentAmount').value);
+      const mode = document.getElementById('paymentMode').value;
+      const dueDate = document.getElementById('paymentDueDate').value || null;
+
+      if (!Number.isFinite(amount) || amount <= 0) {
+        showAlert('Enter a valid paid amount.', 'error');
+        document.getElementById('paymentAmount').focus();
+        return;
+      }
+      if (amount > pending) {
+        showAlert('Paid amount cannot exceed pending amount.', 'error');
+        document.getElementById('paymentAmount').focus();
+        return;
+      }
+      const remaining = Math.max(final - paid - amount, 0);
+      if (remaining > 0 && !dueDate) {
+        showAlert('Collection Due Date is required for a remaining balance.', 'error');
+        document.getElementById('paymentDueDate').focus();
+        return;
+      }
+
+      apiRequest(`/api/bills/${id}/pay`, { method: 'POST', body: JSON.stringify({ amount, mode, dueDate }) })
+        .then(() => apiRequest('/api/db'))
+        .then(data => {
+          DB = data;
+          closeModal('paymentModal');
+          showAlert('Payment recorded successfully!');
+          renderBills();
+          renderStats();
+        })
+        .catch(error => showAlert(error.message, 'error'));
+    }
+
+    // ---- View latest bill with paid and pending summary ----
+    function viewLatestBill() {
+      if (!DB.bills.length) {
+        document.getElementById('latestBillContent').innerHTML = '<p style="color:var(--muted);text-align:center;padding:20px;">No bills found.</p>';
+        openModal('latestBillModal');
+        return;
+      }
+
+      const latest = [...DB.bills].sort((a, b) => new Date(b.date) - new Date(a.date) || b.id - a.id)[0];
+      const customer = DB.customers.find(c => c.id === latest.customerId);
+      const paid = safeNumber(latest.paidAmount);
+      const pending = safeNumber(latest.balanceAmount ?? latest.final - paid);
+      const net = safeNumber(latest.final);
+      const items = latest.items || [];
+
+      const itemRows = items.map(item => `
+        <tr>
+          <td>${item.name}</td>
+          <td style="text-align:center">${item.qty}</td>
+          <td style="text-align:right">${formatCurrency(item.unitPrice)}</td>
+          <td style="text-align:right">${formatCurrency(item.subtotal)}</td>
+        </tr>`).join('');
+
+      document.getElementById('latestBillContent').innerHTML = `
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:18px">
+          <div style="padding:12px;border:1px solid var(--navy-light);border-radius:8px"><small style="color:var(--muted)">NET AMOUNT</small><br><strong style="color:var(--amber)">${formatCurrency(net)}</strong></div>
+          <div style="padding:12px;border:1px solid var(--navy-light);border-radius:8px"><small style="color:var(--muted)">PAID</small><br><strong style="color:var(--green)">${formatCurrency(paid)}</strong></div>
+          <div style="padding:12px;border:1px solid var(--navy-light);border-radius:8px"><small style="color:var(--muted)">PENDING</small><br><strong style="color:var(--red)">${formatCurrency(pending)}</strong></div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px">
+          <div><small style="color:var(--muted)">BILL</small><br><strong>#${String(latest.id).padStart(4, '0')}</strong></div>
+          <div><small style="color:var(--muted)">CUSTOMER</small><br><strong>${customer ? customer.name : '—'}</strong></div>
+          <div><small style="color:var(--muted)">DATE</small><br><strong>${formatDate(latest.date)}</strong></div>
+          <div><small style="color:var(--muted)">STATUS</small><br>${paymentBadge(latest.status)}</div>
+        </div>
+        <table class="export_to_pdf" style="width:100%;margin-bottom:10px">
+          <thead><tr><th>Product</th><th>Qty</th><th>Rate</th><th>Total</th></tr></thead>
+          <tbody>${itemRows || '<tr><td colspan="4" style="text-align:center;color:var(--muted)">No item details available</td></tr>'}</tbody>
+        </table>`;
+      openModal('latestBillModal');
+    }
+    // ---- Search & filter ----
+    document.getElementById('billSearch').addEventListener('input', e =>
+      renderBills(e.target.value, document.getElementById('statusFilter').value));
+    document.getElementById('statusFilter').addEventListener('change', e =>
+      renderBills(document.getElementById('billSearch').value, e.target.value));
+
+    // ---- Init ----
+    document.addEventListener('DOMContentLoaded', () => {
+      appReady.then(() => {
+        populateSelects();
+        renderBills();
+        renderStats();
+        document.getElementById('expenseDate').value = todayISO();
+        renderExpenses();
+      });
+    });
+
+    // Reset cart when modal opens
+    document.querySelector('[onclick="openModal(\'newBillModal\')"]')?.addEventListener('click', () => {
+      cartItems = [];
+      renderCart();
+      recalculate();
+      populateSelects();
+    });
+  </script>
+</body>
+
+</html>
