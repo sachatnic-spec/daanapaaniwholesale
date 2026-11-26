@@ -135,7 +135,14 @@
         </div>
         <table style="width:100%;min-width:620px;">
           <thead>
-            <tr><th>Date</th><th>Description</th><th>Notes</th><th>Recorded By</th><th>Amount</th><th>Actions</th></tr>
+            <tr>
+              <th>Date</th>
+              <th>Description</th>
+              <th>Notes</th>
+              <th>Recorded By</th>
+              <th>Amount</th>
+              <th>Actions</th>
+            </tr>
           </thead>
           <tbody id="expenseTableBody"></tbody>
         </table>
@@ -330,7 +337,7 @@
         <div class="form-grid">
           <div class="form-group">
             <label>Paid Amount *</label>
-            <input type="number" id="paymentAmount" min="0.01" step="0.01" oninput="updatePaymentPreview()" />
+            <input type="number" id="paymentAmount" min="0" step="0.01" oninput="updatePaymentPreview()" />
           </div>
           <div class="form-group">
             <label>Payment Mode</label>
@@ -378,7 +385,8 @@
       <div class="modal-header" style="padding:14px 20px;flex-shrink:0;">
         <h3>Invoice Preview</h3>
         <div style="display:flex;gap:8px;align-items:center;">
-          <button class="btn btn-outline btn-sm" onclick="document.getElementById('invoiceFrame').contentWindow.print()">🖨️ Print</button>
+          <button class="btn btn-outline btn-sm"
+            onclick="document.getElementById('invoiceFrame').contentWindow.print()">🖨️ Print</button>
           <button class="modal-close" onclick="closeModal('invoiceModal')">✕</button>
         </div>
       </div>
@@ -699,7 +707,7 @@
 
       const paymentStatus = balanceAmount <= 0 ? 'Paid' : paidAmount > 0 ? 'Partial' : 'Unpaid';
       const statusDot = paymentStatus === 'Paid' ? '#16a34a' : paymentStatus === 'Partial' ? '#d97706' : '#f59e0b';
-      const statusBg  = paymentStatus === 'Paid' ? '#dcfce7' : paymentStatus === 'Partial' ? '#fef3c7' : '#fef9c3';
+      const statusBg = paymentStatus === 'Paid' ? '#dcfce7' : paymentStatus === 'Partial' ? '#fef3c7' : '#fef9c3';
 
       document.getElementById('receiptContent').innerHTML = `
       <div style="font-family:'Segoe UI',Arial,sans-serif;color:#1e1b2e;background:#fff;border:1px solid #e5e7eb;border-radius:12px;overflow:hidden;max-width:720px;margin:0 auto;">
@@ -717,7 +725,7 @@
           </div>
           <div style="text-align:right;">
             <div style="background:rgba(255,255,255,0.15);border-radius:6px;padding:4px 10px;font-size:10px;font-weight:700;color:rgba(255,255,255,0.85);letter-spacing:2px;text-transform:uppercase;display:inline-block;margin-bottom:6px;">Tax Invoice</div>
-            <div style="font-size:30px;font-weight:800;color:#fff;line-height:1;">#${String(b.id).padStart(4,'0')}</div>
+            <div style="font-size:30px;font-weight:800;color:#fff;line-height:1;">#${String(b.id).padStart(4, '0')}</div>
             <div style="font-size:12px;color:rgba(255,255,255,0.75);margin-top:4px;">&#128197; ${formatDate(b.date)}</div>
           </div>
         </div>
@@ -738,7 +746,7 @@
           <div style="padding:18px 20px;border-right:1px solid #e5e7eb;">
             <div style="font-size:10px;font-weight:700;color:#6d28d9;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:8px;">&#128203; Invoice Details</div>
             <table style="width:100%;font-size:12px;border-collapse:collapse;" class="export_to_pdf">
-              <tr><td style="color:#6b7280;padding:3px 0;">Bill Number</td><td style="text-align:right;font-weight:600;color:#111827;">#${String(b.id).padStart(4,'0')}</td></tr>
+              <tr><td style="color:#6b7280;padding:3px 0;">Bill Number</td><td style="text-align:right;font-weight:600;color:#111827;">#${String(b.id).padStart(4, '0')}</td></tr>
               <tr><td style="color:#6b7280;padding:3px 0;">Issue Date</td><td style="text-align:right;font-weight:600;color:#111827;">${formatDate(b.date)}</td></tr>
               <tr><td style="color:#6b7280;padding:3px 0;">Payment Mode</td><td style="text-align:right;font-weight:600;color:#111827;">&#128181; ${b.mode || 'Cash'}</td></tr>
               ${b.dueDate ? `<tr><td style="color:#6b7280;padding:3px 0;">Due Date</td><td style="text-align:right;font-weight:600;color:#dc2626;">${formatDate(b.dueDate)}</td></tr>` : ''}
@@ -771,13 +779,13 @@
               </tr>
             </thead>
             <tbody>
-              ${receiptItems.map((item,i) => `
+              ${receiptItems.map((item, i) => `
               <tr style="border-bottom:1px solid #f3f4f6;">
-                <td style="padding:12px 10px;color:#9ca3af;font-size:12px;">${i+1}</td>
+                <td style="padding:12px 10px;color:#9ca3af;font-size:12px;">${i + 1}</td>
                 <td style="padding:12px 10px;"><div style="font-weight:600;color:#111827;">${item.name}</div></td>
                 <td style="padding:12px 10px;text-align:center;color:#374151;">${item.qty}</td>
-                <td style="padding:12px 10px;text-align:right;color:#374151;">${formatCurrency(Number(item.unitPrice)||0)}</td>
-                <td style="padding:12px 10px;text-align:right;font-weight:600;color:#111827;">${formatCurrency(Number(item.subtotal)||0)}</td>
+                <td style="padding:12px 10px;text-align:right;color:#374151;">${formatCurrency(Number(item.unitPrice) || 0)}</td>
+                <td style="padding:12px 10px;text-align:right;font-weight:600;color:#111827;">${formatCurrency(Number(item.subtotal) || 0)}</td>
               </tr>`).join('') || `<tr><td colspan="5" style="padding:20px;text-align:center;color:#9ca3af;">No items.</td></tr>`}
             </tbody>
           </table>
@@ -874,7 +882,8 @@
 
       const final = Number(bill.final) || 0;
       const paid = Number(bill.paidAmount) || 0;
-      const amount = Number(document.getElementById('paymentAmount').value);
+      const amountInput = document.getElementById('paymentAmount').value.trim();
+      const amount = Number(amountInput);
       const validAmount = Number.isFinite(amount) ? Math.max(amount, 0) : 0;
       const remaining = Math.max(final - paid - validAmount, 0);
       document.getElementById('paymentDueDateGroup').style.display = remaining > 0 ? 'block' : 'none';
@@ -889,12 +898,13 @@
       const final = Number(bill.final) || 0;
       const paid = Number(bill.paidAmount) || 0;
       const pending = Math.max(final - paid, 0);
-      const amount = Number(document.getElementById('paymentAmount').value);
+      const amountInput = document.getElementById('paymentAmount').value.trim();
+      const amount = Number(amountInput);
       const mode = document.getElementById('paymentMode').value;
       const dueDate = document.getElementById('paymentDueDate').value || null;
 
-      if (!Number.isFinite(amount) || amount <= 0) {
-        showAlert('Enter a valid paid amount.', 'error');
+      if (!amountInput || !Number.isFinite(amount) || amount < 0) {
+        showAlert('Enter a valid amount of zero or more.', 'error');
         document.getElementById('paymentAmount').focus();
         return;
       }

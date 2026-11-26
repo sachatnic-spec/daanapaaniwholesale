@@ -1,12 +1,14 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>DaanaPaani Traders - Tax Invoice</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
+        rel="stylesheet">
     <script>
         tailwind.config = {
             theme: {
@@ -24,21 +26,101 @@
     </script>
     <style>
         @media print {
-            @page { size: A4 portrait; margin: 0; }
-            * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
-            body { background: white !important; margin: 0 !important; padding: 0 !important; }
-            .no-print { display: none !important; }
+            @page {
+                size: A4 portrait;
+                margin: 8mm;
+            }
+
+            * {
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+            }
+
+            body {
+                background: white !important;
+                margin: 0 !important;
+                padding: 0 !important;
+                min-height: 0 !important;
+                font-size: 10pt !important;
+            }
+
+            .no-print {
+                display: none !important;
+            }
+
             #invoiceCard {
                 border-radius: 0 !important;
                 box-shadow: none !important;
                 border: none !important;
                 max-width: 100% !important;
                 margin: 0 !important;
+                overflow: visible !important;
             }
-            main { padding: 0 !important; max-width: 100% !important; }
+
+            main {
+                padding: 0 !important;
+                max-width: 100% !important;
+            }
+
+            #invoiceCard>div {
+                padding: 10px 14px !important;
+            }
+
+            #invoiceCard .grid.grid-cols-1 {
+                grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+                gap: 8px !important;
+            }
+
+            #invoiceCard .grid.grid-cols-1>div {
+                padding: 8px !important;
+                break-inside: avoid;
+            }
+
+            #invoiceItemsTable {
+                width: 100% !important;
+                table-layout: fixed;
+                font-size: 9pt !important;
+            }
+
+            #invoiceItemsTable th,
+            #invoiceItemsTable td {
+                padding: 6px 8px !important;
+                overflow-wrap: anywhere;
+            }
+
+            #invoiceItemsTable tr,
+            #invoiceCard footer {
+                break-inside: avoid;
+            }
+
+            #invoiceItemsTable th:first-child {
+                width: 7% !important;
+            }
+
+            #invoiceItemsTable th:nth-child(2) {
+                width: 38% !important;
+            }
+
+            #invoiceItemsTable th:nth-child(3) {
+                width: 12% !important;
+            }
+
+            #invoiceItemsTable th:nth-child(4),
+            #invoiceItemsTable th:nth-child(5) {
+                width: 21.5% !important;
+            }
+
+            #invoiceCard .overflow-x-auto {
+                overflow: visible !important;
+            }
+
+            #invoiceCard .mt-6 {
+                margin-top: 10px !important;
+            }
         }
     </style>
 </head>
+
 <body class="bg-slate-100 text-slate-800 font-sans antialiased min-h-screen pb-12">
 
     <!-- Toolbar (Non-Printable) -->
@@ -48,7 +130,8 @@
                 <a href="billing.html" class="text-slate-500 hover:text-brand-600 transition-colors">
                     <i class="fa-solid fa-arrow-left"></i>
                 </a>
-                <div class="bg-brand-600 text-white p-2 rounded-lg font-bold text-lg flex items-center justify-center w-9 h-9">
+                <div
+                    class="bg-brand-600 text-white p-2 rounded-lg font-bold text-lg flex items-center justify-center w-9 h-9">
                     <i class="fa-solid fa-receipt"></i>
                 </div>
                 <div>
@@ -56,14 +139,15 @@
                     <p class="text-xs text-slate-500" id="toolbarMeta">Loading...</p>
                 </div>
             </div>
-            
+
         </div>
     </header>
 
     <main class="max-w-4xl mx-auto px-4">
 
         <!-- Toast -->
-        <div id="toast" class="no-print hidden fixed bottom-5 right-5 bg-slate-900 text-white px-4 py-3 rounded-xl shadow-xl flex items-center gap-3 z-50">
+        <div id="toast"
+            class="no-print hidden fixed bottom-5 right-5 bg-slate-900 text-white px-4 py-3 rounded-xl shadow-xl flex items-center gap-3 z-50">
             <i class="fa-solid fa-circle-check text-emerald-400"></i>
             <span id="toastMsg" class="text-sm font-medium"></span>
         </div>
@@ -72,28 +156,41 @@
         <div id="invoiceCard" class="bg-white rounded-2xl shadow-xl border border-slate-200/80 overflow-hidden">
 
             <!-- Header Banner -->
-            <div class="bg-gradient-to-r from-brand-900 via-brand-700 to-brand-600 text-white p-6 sm:p-8 relative overflow-hidden">
-                <div class="absolute -right-10 -top-10 w-48 h-48 bg-white/5 rounded-full blur-2xl pointer-events-none"></div>
-                <div class="absolute right-32 -bottom-10 w-32 h-32 bg-brand-500/20 rounded-full blur-xl pointer-events-none"></div>
+            <div
+                class="bg-gradient-to-r from-brand-900 via-brand-700 to-brand-600 text-white p-6 sm:p-8 relative overflow-hidden">
+                <div class="absolute -right-10 -top-10 w-48 h-48 bg-white/5 rounded-full blur-2xl pointer-events-none">
+                </div>
+                <div
+                    class="absolute right-32 -bottom-10 w-32 h-32 bg-brand-500/20 rounded-full blur-xl pointer-events-none">
+                </div>
                 <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-6 relative z-10">
                     <div class="flex items-center gap-4">
-                        <div class="w-14 h-14 rounded-2xl bg-white p-2 flex items-center justify-center shadow-md flex-shrink-0">
-                            <img src="assets/daana-paani-logo.svg" class="w-10 h-10 object-contain" onerror="this.style.display='none';this.nextElementSibling.style.display='block'">
-                            <svg style="display:none" class="w-10 h-10 text-brand-700" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                        <div
+                            class="w-14 h-14 rounded-2xl bg-white p-2 flex items-center justify-center shadow-md flex-shrink-0">
+                            <img src="assets/daana-paani-logo.svg" class="w-10 h-10 object-contain"
+                                onerror="this.style.display='none';this.nextElementSibling.style.display='block'">
+                            <svg style="display:none" class="w-10 h-10 text-brand-700" viewBox="0 0 24 24" fill="none"
+                                stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
                                 <path d="M12 2L2 7l10 5 10-5-10-5z"></path>
                                 <path d="M2 17l10 5 10-5"></path>
                                 <path d="M2 12l10 5 10-5"></path>
                             </svg>
                         </div>
                         <div>
-                            <h2 class="text-2xl sm:text-3xl font-extrabold tracking-tight text-white">DaanaPaani Traders</h2>
-                            <p class="text-brand-100 text-xs sm:text-sm font-medium tracking-wide uppercase mt-0.5">Good Food &bull; Brighter Tomorrows</p>
+                            <h2 class="text-2xl sm:text-3xl font-extrabold tracking-tight text-white">DaanaPaani Traders
+                            </h2>
+                            <p class="text-brand-100 text-xs sm:text-sm font-medium tracking-wide uppercase mt-0.5">Good
+                                Food &bull; Brighter Tomorrows</p>
                         </div>
                     </div>
                     <div class="text-left sm:text-right border-t sm:border-t-0 pt-4 sm:pt-0 border-white/10">
-                        <span class="inline-block px-2.5 py-1 bg-white/15 rounded text-[11px] font-semibold tracking-wider uppercase text-brand-100 mb-1">TAX INVOICE</span>
+                        <span
+                            class="inline-block px-2.5 py-1 bg-white/15 rounded text-[11px] font-semibold tracking-wider uppercase text-brand-100 mb-1">TAX
+                            INVOICE</span>
                         <h3 class="text-2xl sm:text-3xl font-black text-white tracking-wide" id="billNo">#0000</h3>
-                        <p class="text-xs text-brand-100 font-medium mt-1"><i class="fa-regular fa-calendar-check mr-1 opacity-80"></i> <span id="billDate">—</span></p>
+                        <p class="text-xs text-brand-100 font-medium mt-1"><i
+                                class="fa-regular fa-calendar-check mr-1 opacity-80"></i> <span id="billDate">—</span>
+                        </p>
                     </div>
                 </div>
             </div>
@@ -104,11 +201,14 @@
 
                     <!-- Billed To -->
                     <div class="bg-slate-50/70 p-4 rounded-xl border border-slate-100">
-                        <p class="text-[11px] font-bold tracking-wider text-brand-700 uppercase mb-2 flex items-center gap-1.5">
+                        <p
+                            class="text-[11px] font-bold tracking-wider text-brand-700 uppercase mb-2 flex items-center gap-1.5">
                             <i class="fa-solid fa-user-tag text-xs"></i> Billed To
                         </p>
                         <div class="flex items-center gap-3 mb-2">
-                            <img id="custPhoto" src="" alt="" class="w-10 h-10 rounded-full object-cover border border-slate-200" style="display:none">
+                            <img id="custPhoto" src="" alt=""
+                                class="w-10 h-10 rounded-full object-cover border border-slate-200"
+                                style="display:none">
                             <h4 class="font-bold text-slate-900 text-base leading-snug" id="custName">—</h4>
                         </div>
                         <p class="text-xs text-slate-500 font-medium mb-3" id="custGst"></p>
@@ -126,7 +226,8 @@
 
                     <!-- Invoice Details -->
                     <div class="bg-slate-50/70 p-4 rounded-xl border border-slate-100">
-                        <p class="text-[11px] font-bold tracking-wider text-brand-700 uppercase mb-2 flex items-center gap-1.5">
+                        <p
+                            class="text-[11px] font-bold tracking-wider text-brand-700 uppercase mb-2 flex items-center gap-1.5">
                             <i class="fa-solid fa-file-invoice text-xs"></i> Invoice Details
                         </p>
                         <div class="space-y-2 text-xs">
@@ -155,11 +256,13 @@
                     <!-- Payment Status -->
                     <div class="bg-slate-50/70 p-4 rounded-xl border border-slate-100 flex flex-col justify-between">
                         <div>
-                            <p class="text-[11px] font-bold tracking-wider text-brand-700 uppercase mb-2 flex items-center gap-1.5">
+                            <p
+                                class="text-[11px] font-bold tracking-wider text-brand-700 uppercase mb-2 flex items-center gap-1.5">
                                 <i class="fa-solid fa-wallet text-xs"></i> Payment Status
                             </p>
                             <div class="mt-2 flex items-center justify-between">
-                                <span id="statusBadge" class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-800 border border-amber-200">
+                                <span id="statusBadge"
+                                    class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-800 border border-amber-200">
                                     <span class="w-2 h-2 rounded-full bg-amber-500 animate-pulse"></span> Unpaid
                                 </span>
                                 <span class="text-xs text-slate-500 font-medium">Due on Receipt</span>
@@ -184,7 +287,8 @@
 
                 <div class="overflow-x-auto rounded-xl border border-slate-200">
                     <table id="invoiceItemsTable" class=" w-full text-left text-xs sm:text-sm">
-                        <thead class="bg-slate-50 text-slate-600 font-semibold border-b border-slate-200 uppercase text-[11px] tracking-wider">
+                        <thead
+                            class="bg-slate-50 text-slate-600 font-semibold border-b border-slate-200 uppercase text-[11px] tracking-wider">
                             <tr>
                                 <th class="py-3.5 px-4 w-12 text-center">#</th>
                                 <th class="py-3.5 px-4">Item &amp; Description</th>
@@ -218,15 +322,18 @@
                             <span>Subtotal</span>
                             <span id="subtotalText" class="font-semibold text-slate-800">₹0.00</span>
                         </div>
-                        <div id="discountRow" class="hidden flex justify-between py-1.5 text-slate-600 border-b border-slate-100">
+                        <div id="discountRow"
+                            class="hidden flex justify-between py-1.5 text-slate-600 border-b border-slate-100">
                             <span id="discountLabel">Discount</span>
                             <span id="discountText" class="font-semibold text-emerald-600">-₹0.00</span>
                         </div>
                         <div class="flex justify-between py-1.5 text-slate-600 border-b border-slate-100">
-                            <span class="flex items-center gap-1">Estimated Tax (GST 0%) <i class="fa-solid fa-circle-question text-slate-300 text-[10px]"></i></span>
+                            <span class="flex items-center gap-1">Estimated Tax (GST 0%) <i
+                                    class="fa-solid fa-circle-question text-slate-300 text-[10px]"></i></span>
                             <span class="font-semibold text-slate-800">₹0.00</span>
                         </div>
-                        <div class="flex justify-between py-2 text-slate-900 font-bold text-base border-b-2 border-slate-800">
+                        <div
+                            class="flex justify-between py-2 text-slate-900 font-bold text-base border-b-2 border-slate-800">
                             <span>Total Amount</span>
                             <span id="totalText" class="text-brand-700">₹0.00</span>
                         </div>
@@ -234,7 +341,8 @@
                             <span>Amount Paid</span>
                             <span id="paidText" class="font-medium text-emerald-600">₹0.00</span>
                         </div>
-                        <div class="flex justify-between py-2 bg-brand-50/60 px-3 rounded-lg border border-brand-100 font-extrabold text-sm text-slate-900">
+                        <div
+                            class="flex justify-between py-2 bg-brand-50/60 px-3 rounded-lg border border-brand-100 font-extrabold text-sm text-slate-900">
                             <span>Balance Due</span>
                             <span id="finalBalanceText" class="text-rose-600">₹0.00</span>
                         </div>
@@ -244,7 +352,8 @@
             </div>
 
             <!-- Footer -->
-            <div class="bg-slate-50 p-6 border-t border-slate-200/80 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-slate-500">
+            <div
+                class="bg-slate-50 p-6 border-t border-slate-200/80 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-slate-500">
                 <div>
                     <p class="font-semibold text-slate-700">DaanaPaani Traders</p>
                     <p>GSTIN: 07AAAAA0000A1Z5 &bull; Contact: support@daanapaani.com</p>
@@ -272,39 +381,39 @@
 
         function renderInvoice(b, customer, items) {
             const billNo = '#' + String(b.id).padStart(4, '0');
-            const subtotal   = Number(b.total)      || 0;
-            const discPct    = Number(b.discount)   || 0;
-            const tax        = Number(b.tax)        || 0;
-            const paidAmt    = Number(b.paidAmount) || 0;
-            const discAmt    = subtotal * (discPct / 100);
-            const finalAmt   = subtotal - discAmt + tax;
-            const balance    = Math.max(0, finalAmt - paidAmt);
-            const status     = balance <= 0 ? 'Paid' : paidAmt > 0 ? 'Partial' : 'Unpaid';
+            const subtotal = Number(b.total) || 0;
+            const discPct = Number(b.discount) || 0;
+            const tax = Number(b.tax) || 0;
+            const paidAmt = Number(b.paidAmount) || 0;
+            const discAmt = subtotal * (discPct / 100);
+            const finalAmt = subtotal - discAmt + tax;
+            const balance = Math.max(0, finalAmt - paidAmt);
+            const status = balance <= 0 ? 'Paid' : paidAmt > 0 ? 'Partial' : 'Unpaid';
 
             // Toolbar
             document.getElementById('toolbarMeta').textContent = `Bill ${billNo} • DaanaPaani Traders`;
 
             // Header
-            document.getElementById('billNo').textContent      = billNo;
-            document.getElementById('billDate').textContent    = fmtDate(b.date);
+            document.getElementById('billNo').textContent = billNo;
+            document.getElementById('billDate').textContent = fmtDate(b.date);
 
             // Billed To
-            document.getElementById('custName').textContent    = customer?.name || 'Walk-in Customer';
-            document.getElementById('custGst').textContent     = customer?.gst  || '';
+            document.getElementById('custName').textContent = customer?.name || 'Walk-in Customer';
+            document.getElementById('custGst').textContent = customer?.gst || '';
             if (customer?.photoData) {
                 const img = document.getElementById('custPhoto');
                 img.src = customer.photoData;
                 img.style.display = 'block';
             }
-            document.getElementById('custPhone').textContent   = customer?.phone || '';
+            document.getElementById('custPhone').textContent = customer?.phone || '';
             document.getElementById('custPhoneRow').style.display = customer?.phone ? 'flex' : 'none';
-            document.getElementById('custAddr').textContent    = customer?.address || '';
+            document.getElementById('custAddr').textContent = customer?.address || '';
             document.getElementById('custAddrRow').style.display = customer?.address ? 'flex' : 'none';
 
             // Invoice Details
             document.getElementById('detailBillNo').textContent = billNo;
-            document.getElementById('detailDate').textContent   = fmtDate(b.date);
-            document.getElementById('detailMode').textContent   = b.mode || 'Cash';
+            document.getElementById('detailDate').textContent = fmtDate(b.date);
+            document.getElementById('detailMode').textContent = b.mode || 'Cash';
             if (b.dueDate) {
                 document.getElementById('detailDueDate').textContent = fmtDate(b.dueDate);
                 document.getElementById('detailDueDateRow').style.display = 'flex';
@@ -341,12 +450,12 @@
 
             // Totals
             document.getElementById('subtotalText').textContent = fmt(subtotal);
-            document.getElementById('totalText').textContent    = fmt(finalAmt);
-            document.getElementById('paidText').textContent     = fmt(paidAmt);
+            document.getElementById('totalText').textContent = fmt(finalAmt);
+            document.getElementById('paidText').textContent = fmt(paidAmt);
             document.getElementById('finalBalanceText').textContent = fmt(balance);
             if (discAmt > 0) {
                 document.getElementById('discountLabel').textContent = `Discount (${discPct}%)`;
-                document.getElementById('discountText').textContent  = '-' + fmt(discAmt);
+                document.getElementById('discountText').textContent = '-' + fmt(discAmt);
                 document.getElementById('discountRow').classList.remove('hidden');
                 document.getElementById('discountRow').style.display = 'flex';
             }
@@ -372,11 +481,12 @@
             const items = billItems.length
                 ? billItems.map(i => {
                     const p = DB.products.find(p => p.id === i.productId);
-                    return { name: p?.name || 'Product', qty: Number(i.quantity)||0, unitPrice: Number(i.unitPrice)||0, subtotal: Number(i.subtotal)||0 };
-                  })
+                    return { name: p?.name || 'Product', qty: Number(i.quantity) || 0, unitPrice: Number(i.unitPrice) || 0, subtotal: Number(i.subtotal) || 0 };
+                })
                 : (bill.items || []);
             renderInvoice(bill, customer, items);
         });
     </script>
 </body>
+
 </html>

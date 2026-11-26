@@ -294,14 +294,15 @@ app.post('/api/bills', requireAuth, async (req, res, next) => {
 
 app.post('/api/bills/:id/pay', requireAuth, async (req, res, next) => {
     try {
-        const amount = Number(req.body.amount);
+        const amountInput = req.body.amount;
+        const amount = Number(amountInput);
         const mode = req.body.mode || 'Cash';
         const dueDate = req.body.dueDate ? String(req.body.dueDate).trim() : null;
         if (dueDate && !/^\d{4}-\d{2}-\d{2}$/.test(dueDate)) {
             return res.status(400).json({ error: 'Enter a valid collection due date.' });
         }
-        if (!Number.isFinite(amount) || amount <= 0) {
-            return res.status(400).json({ error: 'Enter a valid paid amount greater than zero.' });
+        if (amountInput === undefined || amountInput === null || String(amountInput).trim() === '' || !Number.isFinite(amount) || amount < 0) {
+            return res.status(400).json({ error: 'Enter a valid amount of zero or more.' });
         }
         const bill = await pool.query('SELECT final_amount, COALESCE(paid_amount,0) paid_amount FROM bills WHERE bill_id=$1', [req.params.id]);
         if (!bill.rows.length) return res.status(404).json({ error: 'Bill not found' });
@@ -310,6 +311,17 @@ app.post('/api/bills/:id/pay', requireAuth, async (req, res, next) => {
         const currentPending = Number(bill.rows[0].final_amount) - currentPaid;
         if (amount > currentPending) {
             return res.status(400).json({ error: 'Paid amount cannot exceed the pending amount.' });
+        }
+        if (amount === 0) {
+            const balanceAmount = Math.max(currentPending, 0);
+            if (balanceAmount > 0 && !dueDate) {
+                return res.status(400).json({ error: 'Collection Due Date is required for a remaining balance.' });
+            }
+            const status = balanceAmount === 0 ? 'Paid' : currentPaid > 0 ? 'Partial' : 'Unpaid';
+            const savedDueDate = balanceAmount === 0 ? null : dueDate;
+            await pool.query('UPDATE bills SET due_date=$1 WHERE bill_id=$2', [savedDueDate, req.params.id]);
+            await addAudit(req, 'UPDATE_BILL_DUE_DATE', 'bill', Number(req.params.id), `Updated due date without collecting payment; balance=${balanceAmount}; dueDate=${savedDueDate || 'cleared'}`);
+            return res.json({ paidAmount: currentPaid, balanceAmount, status, dueDate: savedDueDate });
         }
         const paidAmount = Math.min(Number(bill.rows[0].final_amount), currentPaid + amount);
         const balanceAmount = Math.max(Number(bill.rows[0].final_amount) - paidAmount, 0);
